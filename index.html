@@ -8,14 +8,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Leaflet Velocity CSS (สำหรับทิศทางลม) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-velocity@1.2.3/dist/leaflet-velocity.css" />
+
     <style>
         body { margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; display: flex; height: 100vh; overflow: hidden; background: #f4f4f4;}
         
-        /* Sidebar ด้านข้าง */
         #sidebar { width: 260px; background: white; box-shadow: 2px 0 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 1000; }
         .sidebar-header { background: #0073e6; color: white; padding: 10px; text-align: center; font-size: 15px; font-weight: bold; }
         
-        /* Flexbox สำหรับเรียงลำดับเส้นทางจากน้อยไปมาก */
         .route-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; }
         .route-item { padding: 8px 12px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
         .route-item .number-badge { background: #333; color: white; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 12px; flex-shrink: 0; }
@@ -23,14 +25,12 @@
         
         #map { flex-grow: 1; height: 100%; z-index: 1; }
         
-        /* กราฟิกและ Animation แผนที่ */
         .water-flow { stroke-dasharray: 15, 15; animation: flowAnimation 1.5s linear infinite; }
         @keyframes flowAnimation { 100% { stroke-dashoffset: -30; } }
         
         .route-number-label { background: white; border: 2px solid #333; border-radius: 50%; color: #333; font-family: 'Chakra Petch', sans-serif; font-weight: bold; font-size: 13px; width: 22px; height: 22px; text-align: center; line-height: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         .custom-label { background: rgba(255,255,255,0.9); border: 1px solid #ccc; padding: 2px 6px; border-radius: 4px; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
         
-        /* สำหรับหน้าจอมือถือ */
         @media (max-width: 768px) { 
             body { flex-direction: column; } 
             #sidebar { width: 100%; height: 35vh; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); order: 2; } 
@@ -48,13 +48,15 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet Velocity JS (สำหรับทิศทางลม) -->
+    <script src="https://unpkg.com/leaflet-velocity@1.2.3/dist/leaflet-velocity.js"></script>
 
     <!-- Firebase JS (Type Module) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
-        // ตั้งค่า Firebase ของคุณ
         const firebaseConfig = {
             apiKey: "AIzaSyCDqVrQxMbaw_xqHN6MkCaftyLc6RmuSVw",
             authDomain: "maps-2336c.firebaseapp.com",
@@ -70,60 +72,68 @@
 
         // สร้างแผนที่ฐาน
         const map = L.map('map').setView([16.4322, 102.8236], 13);
-        const baseMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
             maxZoom: 19,
-            attribution: '© OpenStreetMap | สภาพอากาศจาก RainViewer'
+            attribution: '© OpenStreetMap'
         }).addTo(map);
 
         // ==========================================
-        // 🌧️ ระบบเรดาร์เมฆฝน (RainViewer)
+        // 🌬️ ระบบแสดงแอนิเมชันทิศทางลม (Leaflet Velocity)
         // ==========================================
-        let rainLayer;
-        fetch('https://api.rainviewer.com/public/weather-maps.json')
+        
+        // ดึงข้อมูลพิกัดลม (ตัวอย่าง JSON)
+        fetch('https://raw.githubusercontent.com/onaci/leaflet-velocity/master/demo/wind-global.json')
             .then(res => res.json())
-            .then(apiData => {
-                const latestPast = apiData.radar.past;
-                const latestTime = latestPast[latestPast.length - 1].time; // เวลาล่าสุด
-
-               // สร้าง Layer เมฆฝน
-                rainLayer = L.tileLayer(`https://tilecache.rainviewer.com/v2/radar/${latestTime}/256/{z}/{x}/{y}/2/1_1.png`, {
-                    tileSize: 256,
-                    opacity: 0.6, 
-                    zIndex: 10,
-                    transparent: true,
-                    maxNativeZoom: 12, 
-                    maxZoom: 19,
-                    // ⭐️ เพิ่ม 2 บรรทัดนี้เพื่อลดการสแปมโหลดข้อมูลถี่ๆ
-                    updateWhenIdle: true,     // ให้โหลดภาพเรดาร์เฉพาะตอนที่ผู้ใช้หยุดลากแผนที่แล้ว
-                    updateWhenZooming: false  // ไม่ต้องโหลดรูปใหม่รัวๆ ระหว่างที่กำลังอนิเมชั่นซูมเข้า/ออก
+            .then(data => {
+                const velocityLayer = L.velocityLayer({
+                    displayValues: true,
+                    displayOptions: {
+                        velocityType: 'ทิศทางลม',
+                        position: 'bottomleft',
+                        emptyString: 'ไม่มีข้อมูลลม',
+                        speedUnit: 'k/h'
+                    },
+                    data: data,           // ข้อมูลลม
+                    maxVelocity: 15,      // ความเร็วสูงสุดเพื่อใช้คำนวณสี
+                    velocityScale: 0.005, // ขนาดความยาวของเส้นลม
+                    colorScale: [
+                        "#0011ff", // สีลมเอื่อย
+                        "#00aaff", 
+                        "#00ffaa", 
+                        "#ffff00", 
+                        "#ffaa00", 
+                        "#ff0000"  // สีลมแรง
+                    ]
                 });
-                // เพิ่มเมนูสำหรับ เปิด/ปิด เมฆฝนมุมขวาบน
+
+                // สร้างเมนู เปิด/ปิด ทิศทางลมที่มุมขวาบน
                 const overlayMaps = {
-                    "☁️ แสดงกลุ่มเมฆฝน (Real-time)": rainLayer
+                    "🌬️ แสดงทิศทางลม (แอนิเมชัน)": velocityLayer
                 };
                 L.control.layers(null, overlayMaps, { collapsed: false }).addTo(map);
+                
+                // เปิดให้แสดงลมขึ้นมาทันที
+                velocityLayer.addTo(map);
             })
-            .catch(err => console.error("ไม่สามารถโหลดข้อมูลเรดาร์ฝนได้:", err));
+            .catch(err => console.error("โหลดข้อมูลลมไม่สำเร็จ:", err));
 
 
         // ==========================================
-        // 📍 ระบบจัดการข้อมูลหมุดและเส้นทางน้ำ
+        // 📍 ระบบจัดการข้อมูลหมุดและเส้นทางน้ำ (Firebase)
         // ==========================================
         const routeLayers = {};
         const markerLayers = {};
         const routeListUI = document.getElementById('routeListUI');
 
-        // ดึงข้อมูลพิกัด (Markers)
+        // ข้อมูล Markers
         onSnapshot(collection(db, "markers"), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 const data = change.doc.data();
                 const docId = change.doc.id;
 
                 if (change.type === "removed") {
-                    // หากโดนลบจากหลังบ้าน ให้ลบออกหน้าบ้านด้วย
                     if (markerLayers[docId]) { map.removeLayer(markerLayers[docId]); delete markerLayers[docId]; }
                 } else {
-                    // ป้องกัน Error หากพิกัดเสีย
                     if (typeof data.lat === 'undefined' || typeof data.lng === 'undefined') return;
                     if (markerLayers[docId]) map.removeLayer(markerLayers[docId]);
 
@@ -139,7 +149,7 @@
             });
         });
 
-        // ดึงข้อมูลเส้นทางน้ำ (Routes)
+        // ข้อมูล Routes
         onSnapshot(collection(db, "routes"), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 const data = change.doc.data();
@@ -150,7 +160,6 @@
                     document.getElementById(`li-${docId}`)?.remove();
                     delete routeLayers[docId];
                 } else {
-                    // ป้องกัน Error หากข้อมูลพิกัดเส้นทางเสีย
                     if (!data.coordinates || !Array.isArray(data.coordinates)) return; 
                     
                     if (routeLayers[docId]) { map.removeLayer(routeLayers[docId]); document.getElementById(`li-${docId}`)?.remove(); }
@@ -162,7 +171,6 @@
                         className: 'water-flow' 
                     });
 
-                    // สร้างป้ายหมายเลขกำกับตรงกลางเส้น
                     let layerGroup;
                     if(latlngs.length > 0 && data.orderNumber) {
                         const midPoint = latlngs[Math.floor(latlngs.length / 2)];
@@ -178,11 +186,9 @@
                     }
                     routeLayers[docId] = layerGroup;
 
-                    // สร้างรายการใน Sidebar ด้านซ้าย
                     const li = document.createElement('li');
                     li.className = 'route-item'; li.id = `li-${docId}`;
                     
-                    // ⭐️ กำหนดการเรียงลำดับด้วย Flex Order (จากน้อยไปมาก)
                     const orderNum = parseInt(data.orderNumber);
                     li.style.order = isNaN(orderNum) ? 9999 : orderNum; 
 
