@@ -7,45 +7,61 @@
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        body { margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; display: flex; flex-direction: column; height: 100vh; background: #f8f9fa;}
         #map { flex-grow: 1; width: 100vw; z-index: 1; }
-        #panel {
-            background: #fff; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-            z-index: 1000; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;
-        }
-        .form-group { display: flex; align-items: center; gap: 8px; }
-        input, select, button { 
-            font-family: 'Chakra Petch', sans-serif; padding: 8px; 
-            border: 1px solid #ccc; border-radius: 4px; font-size: 14px;
-        }
-        button { background: #333; color: white; cursor: pointer; border: none; font-weight: 600; }
+        
+        #panel { background: #fff; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+        .form-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #f0f4f8; padding: 10px; border-radius: 8px; border: 1px solid #dce4ec;}
+        
+        input, select, button { font-family: 'Chakra Petch', sans-serif; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        button { background: #333; color: white; cursor: pointer; border: none; font-weight: 600; transition: 0.2s;}
         button:hover { background: #555; }
-        .active-btn { background: #28a745; }
-        .active-btn:hover { background: #218838; }
+        
+        .active-btn { background: #28a745 !important; }
+        .edit-mode { border: 2px solid #ffc107 !important; background: #fffdf5 !important; }
+
+        /* แถบรายการเส้นทางสำหรับแอดมิน */
+        #adminRouteList { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
+        .admin-route-item { background: white; border: 1px solid #ddd; padding: 5px 10px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 13px; white-space: nowrap; }
+        .btn-edit { background: #ffc107; color: #000; padding: 2px 8px; font-size: 12px; }
+        .btn-delete { background: #dc3545; padding: 2px 8px; font-size: 12px; }
+
         .water-flow { stroke-dasharray: 15, 15; animation: flowAnimation 1.5s linear infinite; }
         @keyframes flowAnimation { 100% { stroke-dashoffset: -30; } }
+        .route-number-label { background: white; border: 2px solid #333; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 20px; font-weight: bold; font-size: 14px; }
     </style>
 </head>
 <body>
 
     <div id="panel">
-        <div class="form-group">
-            <strong>โหมดการทำงาน:</strong>
-            <button id="btnMarker" class="active-btn">ปักหมุดพิกัด</button>
-            <button id="btnRoute">วาดเส้นทางน้ำ</button>
-        </div>
-        
-        <div id="markerControls" class="form-group">
-            <input type="text" id="markerName" placeholder="ชื่อสถานที่ระบายน้ำ">
-            <input type="color" id="markerColor" value="#ff3333" title="สีของหมุด">
+        <div class="toolbar">
+            <div class="form-group" style="background: transparent; border: none; padding: 0;">
+                <strong>โหมด:</strong>
+                <button id="btnMarker" class="active-btn">ปักหมุดพิกัด</button>
+                <button id="btnRoute">จัดการเส้นทางน้ำ</button>
+            </div>
+            
+            <div id="markerControls" class="form-group">
+                <input type="text" id="markerName" placeholder="ชื่อสถานที่">
+                <input type="color" id="markerColor" value="#ff3333">
+            </div>
+
+            <div id="routeControls" class="form-group" style="display: none;">
+                <input type="number" id="routeNumber" placeholder="เลขลำดับ" style="width: 70px;">
+                <input type="text" id="routeName" placeholder="ชื่อเส้นทางน้ำ">
+                <input type="color" id="routeColor" value="#0073e6" title="สีเส้น">
+                <input type="number" id="routeWeight" value="5" min="1" max="20" title="ความหนา" style="width: 60px;">
+                
+                <button id="btnSaveRoute" style="background: #007bff;">บันทึกเส้นทางใหม่</button>
+                <button id="btnUpdateRoute" style="background: #ffc107; color: black; display: none;">อัปเดตข้อมูล</button>
+                <button id="btnCancelEdit" style="background: #6c757d; display: none;">ยกเลิก</button>
+                <button id="btnClearTemp" style="background: #dc3545;">ล้างเส้นร่าง</button>
+            </div>
         </div>
 
-        <div id="routeControls" class="form-group" style="display: none;">
-            <input type="color" id="routeColor" value="#0073e6" title="สีเส้น">
-            <input type="number" id="routeWeight" value="5" min="1" max="20" title="ความหนาเส้น">
-            <button id="btnSaveRoute" style="background: #007bff;">บันทึกเส้นนี้</button>
-            <button id="btnClearTemp" style="background: #dc3545;">เริ่มวาดใหม่</button>
-        </div>
+        <!-- รายการเส้นทางเพื่อกดแก้ไข/ลบ -->
+        <div id="adminRouteList" style="display: none;"></div>
     </div>
 
     <div id="map"></div>
@@ -54,7 +70,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCDqVrQxMbaw_xqHN6MkCaftyLc6RmuSVw",
@@ -72,51 +88,34 @@
         const map = L.map('map').setView([16.4322, 102.8236], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        let mode = 'marker'; // 'marker' หรือ 'route'
+        let mode = 'marker'; 
         let currentRouteCoords = [];
         let tempPolyline = null;
+        let routeLayers = {}; // เก็บ object เส้นทางบนแผนที่
+        
+        let editingRouteId = null; // เก็บ ID ที่กำลังแก้ไข
 
-        // UI Toggle
-        const btnMarker = document.getElementById('btnMarker');
-        const btnRoute = document.getElementById('btnRoute');
-        const markerControls = document.getElementById('markerControls');
         const routeControls = document.getElementById('routeControls');
+        const adminRouteList = document.getElementById('adminRouteList');
 
-        btnMarker.onclick = () => {
+        // สลับโหมด
+        document.getElementById('btnMarker').onclick = (e) => {
             mode = 'marker';
-            btnMarker.classList.add('active-btn');
-            btnRoute.classList.remove('active-btn');
-            markerControls.style.display = 'flex';
-            routeControls.style.display = 'none';
+            e.target.classList.add('active-btn'); document.getElementById('btnRoute').classList.remove('active-btn');
+            document.getElementById('markerControls').style.display = 'flex';
+            routeControls.style.display = 'none'; adminRouteList.style.display = 'none';
         };
 
-        btnRoute.onclick = () => {
+        document.getElementById('btnRoute').onclick = (e) => {
             mode = 'route';
-            btnRoute.classList.add('active-btn');
-            btnMarker.classList.remove('active-btn');
-            routeControls.style.display = 'flex';
-            markerControls.style.display = 'none';
+            e.target.classList.add('active-btn'); document.getElementById('btnMarker').classList.remove('active-btn');
+            routeControls.style.display = 'flex'; adminRouteList.style.display = 'flex';
         };
 
-        // คลิกลงบนแผนที่
-        map.on('click', async (e) => {
-            if (mode === 'marker') {
-                const name = document.getElementById('markerName').value.trim();
-                const color = document.getElementById('markerColor').value;
-                
-                try {
-                    await addDoc(collection(db, "markers"), {
-                        lat: e.latlng.lat,
-                        lng: e.latlng.lng,
-                        name: name,
-                        color: color
-                    });
-                    document.getElementById('markerName').value = ''; // ล้างค่าหลังจากปักเสร็จ
-                } catch (error) {
-                    console.error("Error adding marker: ", error);
-                }
-
-            } else if (mode === 'route') {
+        // วาดเส้นร่าง
+        map.on('click', (e) => {
+            if (mode === 'route') {
+                if(editingRouteId) return alert('คุณอยู่ในโหมดแก้ไขข้อมูล (ไม่สามารถวาดเส้นใหม่ทับได้) หากต้องการวาดใหม่ให้กดยกเลิกก่อน');
                 currentRouteCoords.push([e.latlng.lat, e.latlng.lng]);
                 drawTempLine();
             }
@@ -125,64 +124,124 @@
         function drawTempLine() {
             if (tempPolyline) map.removeLayer(tempPolyline);
             if (currentRouteCoords.length > 0) {
-                const color = document.getElementById('routeColor').value;
-                const weight = document.getElementById('routeWeight').value;
                 tempPolyline = L.polyline(currentRouteCoords, { 
-                    color: color, 
-                    weight: weight,
-                    className: 'water-flow'
+                    color: document.getElementById('routeColor').value, 
+                    weight: document.getElementById('routeWeight').value, className: 'water-flow'
                 }).addTo(map);
             }
         }
 
-        // จัดการเส้นทาง
-        document.getElementById('btnClearTemp').onclick = () => {
-            currentRouteCoords = [];
-            if (tempPolyline) map.removeLayer(tempPolyline);
-        };
+        // จัดการบันทึก
+        document.getElementById('btnClearTemp').onclick = () => { currentRouteCoords = []; if (tempPolyline) map.removeLayer(tempPolyline); };
 
         document.getElementById('btnSaveRoute').onclick = async () => {
-            if (currentRouteCoords.length < 2) return alert('กรุณาวาดอย่างน้อย 2 จุดเพื่อสร้างเส้นทาง');
-            const color = document.getElementById('routeColor').value;
-            const weight = parseInt(document.getElementById('routeWeight').value);
-
+            if (currentRouteCoords.length < 2) return alert('กรุณาวาดอย่างน้อย 2 จุดบนแผนที่');
+            
             try {
                 await addDoc(collection(db, "routes"), {
-                    coordinates: currentRouteCoords,
-                    color: color,
-                    weight: weight
+                    orderNumber: document.getElementById('routeNumber').value,
+                    name: document.getElementById('routeName').value,
+                    color: document.getElementById('routeColor').value,
+                    weight: parseInt(document.getElementById('routeWeight').value),
+                    coordinates: currentRouteCoords
                 });
-                currentRouteCoords = [];
-                if (tempPolyline) map.removeLayer(tempPolyline);
-            } catch (error) {
-                console.error("Error adding route: ", error);
-            }
+                alert('บันทึกเส้นทางสำเร็จ');
+                document.getElementById('btnClearTemp').click();
+                document.getElementById('routeNumber').value = '';
+                document.getElementById('routeName').value = '';
+            } catch (error) { console.error(error); }
         };
 
-        // แสดงผล Real-time บนหน้า Admin ด้วยเพื่อให้เห็นสิ่งที่บันทึกไปแล้ว
-        onSnapshot(collection(db, "markers"), (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                if (change.type === "added") {
-                    const data = change.doc.data();
-                    const svgIcon = L.divIcon({
-                        className: 'custom-pin',
-                        html: `<svg width="24" height="36" viewBox="0 0 24 36"><path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12zm0 17.5c-3.038 0-5.5-2.462-5.5-5.5S8.962 6.5 12 6.5s5.5 2.462 5.5 5.5-2.462 5.5-5.5 5.5z" fill="${data.color || '#3388ff'}"/></svg>`,
-                        iconSize: [24, 36], iconAnchor: [12, 36]
+        // โหลดข้อมูล Routes มาแสดงทั้งบนแผนที่และลิสต์รายการ
+        onSnapshot(collection(db, "routes"), (snapshot) => {
+            adminRouteList.innerHTML = ''; // เคลียร์ลิสต์เดิม
+            
+            snapshot.docs.forEach((docSnap) => {
+                const data = docSnap.data();
+                const docId = docSnap.id;
+
+                // 1. สร้างปุ่มจัดการใน List ด้านล่าง
+                const div = document.createElement('div');
+                div.className = 'admin-route-item';
+                div.innerHTML = `
+                    <strong>[${data.orderNumber || '-'}]</strong> ${data.name || 'ไม่มีชื่อ'}
+                    <button class="btn-edit" data-id="${docId}">แก้ไข</button>
+                    <button class="btn-delete" data-id="${docId}">ลบ</button>
+                `;
+                adminRouteList.appendChild(div);
+
+                // ผูก Event แก้ไข
+                div.querySelector('.btn-edit').onclick = () => startEditMode(docId, data);
+                // ผูก Event ลบ
+                div.querySelector('.btn-delete').onclick = async () => {
+                    if(confirm(`ต้องการลบเส้นทาง ${data.name} ใช่หรือไม่?`)) {
+                        await deleteDoc(doc(db, "routes", docId));
+                        if(editingRouteId === docId) cancelEditMode();
+                    }
+                };
+
+                // 2. วาดลงแผนที่แบบ Real-time
+                if (routeLayers[docId]) map.removeLayer(routeLayers[docId]);
+                
+                const polyline = L.polyline(data.coordinates, { color: data.color, weight: data.weight, className: 'water-flow' });
+                
+                let layerGroup;
+                if(data.coordinates.length > 0 && data.orderNumber) {
+                    const mid = data.coordinates[Math.floor(data.coordinates.length / 2)];
+                    const label = L.marker(mid, { 
+                        icon: L.divIcon({ className: 'custom-div-icon', html: `<div class="route-number-label" style="border-color:${data.color}">${data.orderNumber}</div>`, iconSize:[24,24], iconAnchor:[12,12] })
                     });
-                    const marker = L.marker([data.lat, data.lng], { icon: svgIcon }).addTo(map);
-                    if(data.name) marker.bindTooltip(data.name, { permanent: true, direction: 'top', offset: [0, -30], className: 'custom-label' });
+                    layerGroup = L.layerGroup([polyline, label]).addTo(map);
+                } else {
+                    layerGroup = polyline.addTo(map);
                 }
+                routeLayers[docId] = layerGroup;
             });
         });
 
-        onSnapshot(collection(db, "routes"), (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                if (change.type === "added") {
-                    const data = change.doc.data();
-                    L.polyline(data.coordinates, { color: data.color, weight: data.weight, className: 'water-flow' }).addTo(map);
-                }
-            });
-        });
+        // ระบบแก้ไขข้อมูล
+        function startEditMode(id, data) {
+            editingRouteId = id;
+            document.getElementById('routeNumber').value = data.orderNumber || '';
+            document.getElementById('routeName').value = data.name || '';
+            document.getElementById('routeColor').value = data.color || '#0073e6';
+            document.getElementById('routeWeight').value = data.weight || 5;
+
+            document.getElementById('btnSaveRoute').style.display = 'none';
+            document.getElementById('btnUpdateRoute').style.display = 'inline-block';
+            document.getElementById('btnCancelEdit').style.display = 'inline-block';
+            document.getElementById('btnClearTemp').style.display = 'none';
+            routeControls.classList.add('edit-mode');
+        }
+
+        function cancelEditMode() {
+            editingRouteId = null;
+            document.getElementById('routeNumber').value = '';
+            document.getElementById('routeName').value = '';
+            
+            document.getElementById('btnSaveRoute').style.display = 'inline-block';
+            document.getElementById('btnUpdateRoute').style.display = 'none';
+            document.getElementById('btnCancelEdit').style.display = 'none';
+            document.getElementById('btnClearTemp').style.display = 'inline-block';
+            routeControls.classList.remove('edit-mode');
+        }
+
+        document.getElementById('btnCancelEdit').onclick = cancelEditMode;
+
+        document.getElementById('btnUpdateRoute').onclick = async () => {
+            if(!editingRouteId) return;
+            try {
+                await updateDoc(doc(db, "routes", editingRouteId), {
+                    orderNumber: document.getElementById('routeNumber').value,
+                    name: document.getElementById('routeName').value,
+                    color: document.getElementById('routeColor').value,
+                    weight: parseInt(document.getElementById('routeWeight').value)
+                });
+                alert('อัปเดตข้อมูลสำเร็จ');
+                cancelEditMode();
+            } catch (error) { console.error(error); }
+        };
+
     </script>
 </body>
 </html>
