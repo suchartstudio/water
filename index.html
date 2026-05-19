@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>แผนที่ระบายน้ำเมืองขอนแก่น</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; }
+        #map { height: 100vh; width: 100vw; z-index: 1; }
+        
+        /* CSS สำหรับ Animation การไหลของน้ำ */
+        .water-flow {
+            stroke-dasharray: 15, 15;
+            animation: flowAnimation 1.5s linear infinite;
+        }
+        @keyframes flowAnimation {
+            100% { stroke-dashoffset: -30; } /* ค่าติดลบทำให้เส้นไหลไปตามทิศทางที่ลาก */
+        }
+        
+        /* สไตล์สำหรับป้ายชื่อหมุด */
+        .custom-label {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Chakra Petch', sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCDqVrQxMbaw_xqHN6MkCaftyLc6RmuSVw",
+            authDomain: "maps-2336c.firebaseapp.com",
+            projectId: "maps-2336c",
+            storageBucket: "maps-2336c.firebasestorage.app",
+            messagingSenderId: "1022647480820",
+            appId: "1:1022647480820:web:b54dbc3ac910d6cffcc9a1",
+            measurementId: "G-PNHR7DVRTS"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // ตั้งค่าเริ่มต้นที่ขอนแก่น
+        const map = L.map('map').setView([16.4322, 102.8236], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        let mapLayers = [];
+
+        // ดึงข้อมูลพิกัดสถานที่
+        onSnapshot(collection(db, "markers"), (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added") {
+                    const data = change.doc.data();
+                    const markerColor = data.color || '#3388ff';
+                    
+                    // สร้างหมุด SVG แบบเปลี่ยนสีได้
+                    const svgIcon = L.divIcon({
+                        className: 'custom-pin',
+                        html: `<svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12zm0 17.5c-3.038 0-5.5-2.462-5.5-5.5S8.962 6.5 12 6.5s5.5 2.462 5.5 5.5-2.462 5.5-5.5 5.5z" fill="${markerColor}"/></svg>`,
+                        iconSize: [24, 36],
+                        iconAnchor: [12, 36]
+                    });
+
+                    const marker = L.marker([data.lat, data.lng], { icon: svgIcon }).addTo(map);
+                    
+                    if(data.name) {
+                        marker.bindTooltip(data.name, {
+                            permanent: true,
+                            direction: 'top',
+                            className: 'custom-label',
+                            offset: [0, -30]
+                        });
+                    }
+                }
+            });
+        });
+
+        // ดึงข้อมูลเส้นทางน้ำ
+        onSnapshot(collection(db, "routes"), (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added") {
+                    const data = change.doc.data();
+                    L.polyline(data.coordinates, {
+                        color: data.color || '#0073e6',
+                        weight: data.weight || 4,
+                        className: 'water-flow' // เรียกใช้ Animation
+                    }).addTo(map);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
