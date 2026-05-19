@@ -85,12 +85,14 @@
                 const latestPast = apiData.radar.past;
                 const latestTime = latestPast[latestPast.length - 1].time; // เวลาล่าสุด
 
-                // สร้าง Layer เมฆฝน
+               // สร้าง Layer เมฆฝน
                 rainLayer = L.tileLayer(`https://tilecache.rainviewer.com/v2/radar/${latestTime}/256/{z}/{x}/{y}/2/1_1.png`, {
                     tileSize: 256,
                     opacity: 0.6, // ความโปร่งใสของเมฆ
                     zIndex: 10,
-                    transparent: true
+                    transparent: true,
+                    maxNativeZoom: 12, // ⭐️ หยุดโหลดภาพจากเซิร์ฟเวอร์เรดาร์เมื่อซูมเกินระดับ 12 (ให้ใช้รูปเดิมมาขยายแทน)
+                    maxZoom: 19        // ⭐️ แต่ยอมให้ผู้ใช้ยังคงซูมแผนที่ลึกได้ถึงระดับ 19 เพื่อดูเส้นทางน้ำ
                 });
 
                 // เพิ่มเมนูสำหรับ เปิด/ปิด เมฆฝนมุมขวาบน
