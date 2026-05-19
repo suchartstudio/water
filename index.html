@@ -4,28 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>แผนที่ระบายน้ำเมืองขอนแก่น</title>
+    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; display: flex; height: 100vh; overflow: hidden; background: #f4f4f4;}
         
-        /* Sidebar ด้านข้าง (ปรับขนาดให้เล็กลงและกะทัดรัดขึ้น) */
+        /* Sidebar ด้านข้าง */
         #sidebar { width: 260px; background: white; box-shadow: 2px 0 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 1000; }
         .sidebar-header { background: #0073e6; color: white; padding: 10px; text-align: center; font-size: 15px; font-weight: bold; }
         
-        /* เปลี่ยนเป็น Flex เพื่อให้สามารถใช้คำสั่ง order ในการเรียงลำดับได้ */
+        /* Flexbox สำหรับเรียงลำดับเส้นทางจากน้อยไปมาก */
         .route-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; }
         .route-item { padding: 8px 12px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
         .route-item .number-badge { background: #333; color: white; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 12px; flex-shrink: 0; }
         .route-item .route-name { font-size: 13px; color: #333; word-break: break-word; }
         
         #map { flex-grow: 1; height: 100%; z-index: 1; }
+        
+        /* กราฟิกและ Animation แผนที่ */
         .water-flow { stroke-dasharray: 15, 15; animation: flowAnimation 1.5s linear infinite; }
         @keyframes flowAnimation { 100% { stroke-dashoffset: -30; } }
+        
         .route-number-label { background: white; border: 2px solid #333; border-radius: 50%; color: #333; font-family: 'Chakra Petch', sans-serif; font-weight: bold; font-size: 13px; width: 22px; height: 22px; text-align: center; line-height: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         .custom-label { background: rgba(255,255,255,0.9); border: 1px solid #ccc; padding: 2px 6px; border-radius: 4px; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
         
-        @media (max-width: 768px) { body { flex-direction: column; } #sidebar { width: 100%; height: 35vh; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); order: 2; } #map { height: 65vh; order: 1; } }
+        /* สำหรับหน้าจอมือถือ */
+        @media (max-width: 768px) { 
+            body { flex-direction: column; } 
+            #sidebar { width: 100%; height: 35vh; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); order: 2; } 
+            #map { height: 65vh; order: 1; } 
+        }
     </style>
 </head>
 <body>
@@ -36,11 +46,15 @@
     </div>
     <div id="map"></div>
 
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Firebase JS (Type Module) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
+        // ตั้งค่า Firebase ของคุณ
         const firebaseConfig = {
             apiKey: "AIzaSyCDqVrQxMbaw_xqHN6MkCaftyLc6RmuSVw",
             authDomain: "maps-2336c.firebaseapp.com",
@@ -53,22 +67,59 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const map = L.map('map').setView([16.4322, 102.8236], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
+        // สร้างแผนที่ฐาน
+        const map = L.map('map').setView([16.4322, 102.8236], 13);
+        const baseMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+            maxZoom: 19,
+            attribution: '© OpenStreetMap | สภาพอากาศจาก RainViewer'
+        }).addTo(map);
+
+        // ==========================================
+        // 🌧️ ระบบเรดาร์เมฆฝน (RainViewer)
+        // ==========================================
+        let rainLayer;
+        fetch('https://api.rainviewer.com/public/weather-maps.json')
+            .then(res => res.json())
+            .then(apiData => {
+                const latestPast = apiData.radar.past;
+                const latestTime = latestPast[latestPast.length - 1].time; // เวลาล่าสุด
+
+                // สร้าง Layer เมฆฝน
+                rainLayer = L.tileLayer(`https://tilecache.rainviewer.com/v2/radar/${latestTime}/256/{z}/{x}/{y}/2/1_1.png`, {
+                    tileSize: 256,
+                    opacity: 0.6, // ความโปร่งใสของเมฆ
+                    zIndex: 10,
+                    transparent: true
+                });
+
+                // เพิ่มเมนูสำหรับ เปิด/ปิด เมฆฝนมุมขวาบน
+                const overlayMaps = {
+                    "☁️ แสดงกลุ่มเมฆฝน (Real-time)": rainLayer
+                };
+                L.control.layers(null, overlayMaps, { collapsed: false }).addTo(map);
+            })
+            .catch(err => console.error("ไม่สามารถโหลดข้อมูลเรดาร์ฝนได้:", err));
+
+
+        // ==========================================
+        // 📍 ระบบจัดการข้อมูลหมุดและเส้นทางน้ำ
+        // ==========================================
         const routeLayers = {};
         const markerLayers = {};
         const routeListUI = document.getElementById('routeListUI');
 
-        // โหลดข้อมูล Markers
+        // ดึงข้อมูลพิกัด (Markers)
         onSnapshot(collection(db, "markers"), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 const data = change.doc.data();
                 const docId = change.doc.id;
 
                 if (change.type === "removed") {
+                    // หากโดนลบจากหลังบ้าน ให้ลบออกหน้าบ้านด้วย
                     if (markerLayers[docId]) { map.removeLayer(markerLayers[docId]); delete markerLayers[docId]; }
                 } else {
+                    // ป้องกัน Error หากพิกัดเสีย
                     if (typeof data.lat === 'undefined' || typeof data.lng === 'undefined') return;
                     if (markerLayers[docId]) map.removeLayer(markerLayers[docId]);
 
@@ -84,7 +135,7 @@
             });
         });
 
-        // โหลดข้อมูล Routes
+        // ดึงข้อมูลเส้นทางน้ำ (Routes)
         onSnapshot(collection(db, "routes"), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 const data = change.doc.data();
@@ -95,21 +146,35 @@
                     document.getElementById(`li-${docId}`)?.remove();
                     delete routeLayers[docId];
                 } else {
+                    // ป้องกัน Error หากข้อมูลพิกัดเส้นทางเสีย
                     if (!data.coordinates || !Array.isArray(data.coordinates)) return; 
+                    
                     if (routeLayers[docId]) { map.removeLayer(routeLayers[docId]); document.getElementById(`li-${docId}`)?.remove(); }
 
                     const latlngs = data.coordinates.map(c => [c.lat, c.lng]);
-                    const polyline = L.polyline(latlngs, { color: data.color || '#0073e6', weight: data.weight || 4, className: 'water-flow' });
+                    const polyline = L.polyline(latlngs, { 
+                        color: data.color || '#0073e6', 
+                        weight: data.weight || 4, 
+                        className: 'water-flow' 
+                    });
 
+                    // สร้างป้ายหมายเลขกำกับตรงกลางเส้น
                     let layerGroup;
                     if(latlngs.length > 0 && data.orderNumber) {
                         const midPoint = latlngs[Math.floor(latlngs.length / 2)];
-                        const numIcon = L.divIcon({ className: 'custom-div-icon', html: `<div class="route-number-label" style="border-color:${data.color}">${data.orderNumber}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
+                        const numIcon = L.divIcon({ 
+                            className: 'custom-div-icon', 
+                            html: `<div class="route-number-label" style="border-color:${data.color}">${data.orderNumber}</div>`, 
+                            iconSize: [22, 22], iconAnchor: [11, 11] 
+                        });
                         const labelMarker = L.marker(midPoint, { icon: numIcon });
                         layerGroup = L.layerGroup([polyline, labelMarker]).addTo(map);
-                    } else { layerGroup = polyline.addTo(map); }
+                    } else { 
+                        layerGroup = polyline.addTo(map); 
+                    }
                     routeLayers[docId] = layerGroup;
 
+                    // สร้างรายการใน Sidebar ด้านซ้าย
                     const li = document.createElement('li');
                     li.className = 'route-item'; li.id = `li-${docId}`;
                     
@@ -117,8 +182,10 @@
                     const orderNum = parseInt(data.orderNumber);
                     li.style.order = isNaN(orderNum) ? 9999 : orderNum; 
 
-                    li.innerHTML = `<div class="number-badge" style="background-color: ${data.color || '#333'}">${data.orderNumber || '-'}</div>
-                                    <div class="route-name">${data.name || 'ไม่มีชื่อ'}</div>`;
+                    li.innerHTML = `
+                        <div class="number-badge" style="background-color: ${data.color || '#333'}">${data.orderNumber || '-'}</div>
+                        <div class="route-name">${data.name || 'ไม่มีชื่อ'}</div>
+                    `;
                     routeListUI.appendChild(li);
                 }
             });
