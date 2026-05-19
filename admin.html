@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ระบบจัดการแผนที่ระบายน้ำเมืองขอนแก่น</title>
+    <title>ระบบจัดการแผนที่ระบายน้ำ</title>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -21,21 +21,17 @@
         .active-btn { background: #28a745 !important; }
         .edit-mode { border: 2px solid #ffc107 !important; background: #fffdf5 !important; }
 
-        /* แถบรายการข้อมูลด้านล่าง */
         #adminRouteList, #adminMarkerList { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
         .admin-list-item { background: white; border: 1px solid #ddd; padding: 5px 10px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 13px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .btn-edit { background: #ffc107; color: #000; padding: 2px 8px; font-size: 12px; }
         .btn-delete { background: #dc3545; padding: 2px 8px; font-size: 12px; }
 
-        /* กราฟิกแผนที่ */
         .water-flow { stroke-dasharray: 15, 15; animation: flowAnimation 1.5s linear infinite; }
         @keyframes flowAnimation { 100% { stroke-dashoffset: -30; } }
         .route-number-label { background: white; border: 2px solid #333; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 20px; font-weight: bold; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);}
         .custom-label { background: rgba(255,255,255,0.9); border: 1px solid #ccc; padding: 2px 6px; border-radius: 4px; font-family: 'Chakra Petch', sans-serif; font-size: 14px; font-weight: bold; }
         .vertex-marker div { transition: background 0.2s; cursor: grab; box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
         .vertex-marker div:hover { background: #ffc107 !important; border-color: #333 !important; transform: scale(1.2); }
-        
-        /* Highlight หมุดที่กำลังถูกแก้ไข */
         .editing-marker { filter: drop-shadow(0 0 8px rgba(255, 193, 7, 0.8)); transform-origin: bottom center; animation: bounce 1s infinite alternate; }
         @keyframes bounce { 0% { transform: translateY(0); } 100% { transform: translateY(-5px); } }
     </style>
@@ -50,24 +46,20 @@
                 <button id="btnRoute">จัดการเส้นทางน้ำ</button>
             </div>
             
-            <!-- ส่วนควบคุมหมุดพิกัด -->
             <div id="markerControls" class="form-group">
                 <input type="text" id="markerName" placeholder="ชื่อสถานที่ระบายน้ำ">
                 <input type="color" id="markerColor" value="#ff3333">
-                
                 <button id="btnUpdateMarker" style="background: #ffc107; color: black; display: none;">อัปเดตข้อมูลหมุด</button>
                 <button id="btnCancelMarkerEdit" style="background: #6c757d; display: none;">ยกเลิกแก้ไข</button>
                 <span id="markerHelpText" style="font-size: 12px; color: #666; margin-left: 10px;">*คลิกบนแผนที่เพื่อปักหมุดใหม่ทันที</span>
             </div>
 
-            <!-- ส่วนควบคุมเส้นทางน้ำ -->
             <div id="routeControls" class="form-group" style="display: none;">
-                <input type="number" id="routeNumber" placeholder="เลขลำดับ" style="width: 70px;">
+                <input type="number" id="routeNumber" placeholder="ลำดับ" style="width: 60px;">
                 <input type="text" id="routeName" placeholder="ชื่อเส้นทางน้ำ">
                 <input type="color" id="routeColor" value="#0073e6" title="สีเส้น">
                 <input type="number" id="routeWeight" value="5" min="1" max="20" title="ความหนา" style="width: 60px;">
-                
-                <button id="btnSaveRoute" style="background: #007bff;">บันทึกเส้นทางใหม่</button>
+                <button id="btnSaveRoute" style="background: #007bff;">บันทึกเส้นใหม่</button>
                 <button id="btnUpdateRoute" style="background: #ffc107; color: black; display: none;">อัปเดตข้อมูลเส้น</button>
                 <button id="btnCancelEdit" style="background: #6c757d; display: none;">ยกเลิกแก้ไข</button>
                 <button id="btnClearTemp" style="background: #dc3545;">ล้างเส้นร่าง</button>
@@ -75,7 +67,6 @@
             </div>
         </div>
 
-        <!-- รายการจัดการ (สลับตามโหมด) -->
         <div id="adminMarkerList" style="display: flex;"></div>
         <div id="adminRouteList" style="display: none;"></div>
     </div>
@@ -83,7 +74,6 @@
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
         import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
@@ -100,61 +90,42 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
         const map = L.map('map').setView([16.4322, 102.8236], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        // ตัวแปรสถานะ
         let mode = 'marker'; 
-        
-        // สำหรับเส้นทาง
-        let currentRouteCoords = [];
-        let tempPolyline = null;
-        let routeLayers = {}; 
-        let editingRouteId = null; 
-        let vertexMarkers = []; 
+        let currentRouteCoords = [], tempPolyline = null, routeLayers = {}, editingRouteId = null, vertexMarkers = []; 
+        let markerLayers = {}, editingMarkerId = null, originalMarkerPos = null;
 
-        // สำหรับหมุดพิกัด
-        let markerLayers = {};
-        let editingMarkerId = null;
-        let originalMarkerPos = null; // เก็บพิกัดเดิมไว้เผื่อกดยกเลิก
-
-        // UI Elements
         const routeControls = document.getElementById('routeControls');
         const markerControls = document.getElementById('markerControls');
         const adminRouteList = document.getElementById('adminRouteList');
         const adminMarkerList = document.getElementById('adminMarkerList');
         const markerHelpText = document.getElementById('markerHelpText');
 
-        // สลับโหมด
         document.getElementById('btnMarker').onclick = (e) => {
-            mode = 'marker';
-            if (editingRouteId) cancelEditMode(); // ปิดสถานะแก้ไขเส้น
+            mode = 'marker'; if (editingRouteId) cancelEditMode(); 
             e.target.classList.add('active-btn'); document.getElementById('btnRoute').classList.remove('active-btn');
             markerControls.style.display = 'flex'; routeControls.style.display = 'none'; 
             adminMarkerList.style.display = 'flex'; adminRouteList.style.display = 'none';
         };
 
         document.getElementById('btnRoute').onclick = (e) => {
-            mode = 'route';
-            if (editingMarkerId) cancelEditMarker(); // ปิดสถานะแก้ไขหมุด
+            mode = 'route'; if (editingMarkerId) cancelEditMarker(); 
             e.target.classList.add('active-btn'); document.getElementById('btnMarker').classList.remove('active-btn');
             routeControls.style.display = 'flex'; markerControls.style.display = 'none';
             adminRouteList.style.display = 'flex'; adminMarkerList.style.display = 'none';
         };
 
-        // คลิกลงบนแผนที่
         map.on('click', async (e) => {
             if (mode === 'marker') {
-                if (editingMarkerId) return alert('คุณอยู่ในโหมดแก้ไขหมุด กรุณาลากย้ายตำแหน่งหมุด หรือกดยกเลิกแก้ไขเพื่อปักหมุดใหม่');
-                
+                if (editingMarkerId) return alert('กรุณาลากย้ายตำแหน่งหมุด หรือกดยกเลิกแก้ไขเพื่อปักหมุดใหม่');
                 const name = document.getElementById('markerName').value.trim();
                 const color = document.getElementById('markerColor').value;
                 try {
                     await addDoc(collection(db, "markers"), { lat: e.latlng.lat, lng: e.latlng.lng, name: name, color: color });
                     document.getElementById('markerName').value = ''; 
-                } catch (error) { console.error("Error adding marker: ", error); }
-            
+                } catch (error) { console.error(error); }
             } else if (mode === 'route') {
                 currentRouteCoords.push({ lat: e.latlng.lat, lng: e.latlng.lng });
                 addVertexMarker(e.latlng.lat, e.latlng.lng);
@@ -162,186 +133,122 @@
             }
         });
 
-        /* ==================== ระบบจัดการหมุดพิกัด (MARKERS) ==================== */
-        
+        // ------------------ ระบบ Markers ------------------
         onSnapshot(collection(db, "markers"), (snapshot) => {
             adminMarkerList.innerHTML = ''; 
             
+            // วาดรายการ UI ด้านล่าง
             snapshot.docs.forEach((docSnap) => {
                 const data = docSnap.data();
-                const docId = docSnap.id;
-
-                // 1. สร้างรายการด้านล่าง
-                const div = document.createElement('div');
-                div.className = 'admin-list-item';
-                div.innerHTML = `
-                    <span style="display:inline-block; width:12px; height:12px; background:${data.color || '#ff3333'}; border-radius:50%;"></span>
-                    ${data.name || 'ไม่มีชื่อ'}
-                    <button class="btn-edit" data-id="${docId}">แก้ไข</button>
-                    <button class="btn-delete" data-id="${docId}">ลบ</button>
-                `;
+                if (typeof data.lat === 'undefined' || typeof data.lng === 'undefined') return; // ตัวป้องกัน Error
+                
+                const div = document.createElement('div'); div.className = 'admin-list-item';
+                div.innerHTML = `<span style="display:inline-block; width:12px; height:12px; background:${data.color || '#ff3333'}; border-radius:50%;"></span>
+                                 ${data.name || 'ไม่มีชื่อ'}
+                                 <button class="btn-edit">แก้ไข</button><button class="btn-delete">ลบ</button>`;
                 adminMarkerList.appendChild(div);
-
-                div.querySelector('.btn-edit').onclick = () => startEditMarker(docId, data);
+                div.querySelector('.btn-edit').onclick = () => startEditMarker(docSnap.id, data);
                 div.querySelector('.btn-delete').onclick = async () => {
-                    if(confirm(`ต้องการลบสถานที่ "${data.name}" ใช่หรือไม่?`)) {
-                        await deleteDoc(doc(db, "markers", docId));
-                        if(editingMarkerId === docId) cancelEditMarker();
+                    if(confirm(`ลบสถานที่ "${data.name}"?`)) {
+                        await deleteDoc(doc(db, "markers", docSnap.id));
+                        if(editingMarkerId === docSnap.id) cancelEditMarker();
                     }
                 };
+            });
 
-                // 2. วาดหมุดบนแผนที่
-                if (markerLayers[docId]) map.removeLayer(markerLayers[docId]);
-                
-                // ตรวจสอบว่าหมุดนี้กำลังถูกแก้ไขอยู่หรือไม่
-                const isEditing = (editingMarkerId === docId);
-                const svgClass = isEditing ? 'custom-pin editing-marker' : 'custom-pin';
+            // อัปเดตจุดบนแผนที่เฉพาะจุดที่เปลี่ยนแปลง
+            snapshot.docChanges().forEach((change) => {
+                const data = change.doc.data();
+                const docId = change.doc.id;
 
-                const svgIcon = L.divIcon({
-                    className: svgClass,
-                    html: `<svg width="24" height="36" viewBox="0 0 24 36"><path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12zm0 17.5c-3.038 0-5.5-2.462-5.5-5.5S8.962 6.5 12 6.5s5.5 2.462 5.5 5.5-2.462 5.5-5.5 5.5z" fill="${data.color || '#ff3333'}"/></svg>`,
-                    iconSize: [24, 36], iconAnchor: [12, 36]
-                });
-
-                const marker = L.marker([data.lat, data.lng], { 
-                    icon: svgIcon,
-                    draggable: isEditing // เปิดให้ลากได้เฉพาะหมุดที่กดแก้ไข
-                }).addTo(map);
-
-                if(data.name) marker.bindTooltip(data.name, { permanent: true, direction: 'top', offset: [0, -30], className: 'custom-label' });
-                
-                if (isEditing) {
-                    marker.setZIndexOffset(1000); // ดันมาอยู่หน้าสุด
-                    // เมื่อลากเสร็จสามารถดัก Event ได้ที่นี่
+                if (change.type === "removed") {
+                    if (markerLayers[docId]) { map.removeLayer(markerLayers[docId]); delete markerLayers[docId]; }
+                } else {
+                    if (typeof data.lat === 'undefined' || typeof data.lng === 'undefined') return;
+                    if (markerLayers[docId]) map.removeLayer(markerLayers[docId]);
+                    
+                    const isEditing = (editingMarkerId === docId);
+                    const svgIcon = L.divIcon({
+                        className: isEditing ? 'custom-pin editing-marker' : 'custom-pin',
+                        html: `<svg width="24" height="36" viewBox="0 0 24 36"><path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12zm0 17.5c-3.038 0-5.5-2.462-5.5-5.5S8.962 6.5 12 6.5s5.5 2.462 5.5 5.5-2.462 5.5-5.5 5.5z" fill="${data.color || '#ff3333'}"/></svg>`,
+                        iconSize: [24, 36], iconAnchor: [12, 36]
+                    });
+                    const marker = L.marker([data.lat, data.lng], { icon: svgIcon, draggable: isEditing }).addTo(map);
+                    if(data.name) marker.bindTooltip(data.name, { permanent: true, direction: 'top', offset: [0, -30], className: 'custom-label' });
+                    if (isEditing) marker.setZIndexOffset(1000);
+                    markerLayers[docId] = marker;
                 }
-
-                markerLayers[docId] = marker;
             });
         });
 
-        // ฟังก์ชันเริ่มแก้ไขหมุด
         function startEditMarker(id, data) {
-            cancelEditMarker(); // รีเซ็ตของเดิมเผื่อกดข้ามไปมา
-            editingMarkerId = id;
-            
+            cancelEditMarker(); editingMarkerId = id;
             document.getElementById('markerName').value = data.name || '';
             document.getElementById('markerColor').value = data.color || '#ff3333';
-
             document.getElementById('btnUpdateMarker').style.display = 'inline-block';
             document.getElementById('btnCancelMarkerEdit').style.display = 'inline-block';
-            markerControls.classList.add('edit-mode');
-            markerHelpText.innerText = '* ลากหมุดบนแผนที่เพื่อย้ายตำแหน่ง';
+            markerControls.classList.add('edit-mode'); markerHelpText.innerText = '* ลากหมุดเพื่อย้ายตำแหน่ง';
 
-            // เปิดให้หมุดเป้าหมายลากได้ และเก็บพิกัดเดิมไว้เผื่อกดยกเลิก
-            const targetMarker = markerLayers[id];
-            if (targetMarker) {
-                originalMarkerPos = targetMarker.getLatLng();
-                targetMarker.dragging.enable();
-                targetMarker.setZIndexOffset(1000);
-                // ดึงสไตล์ให้มีเอฟเฟกต์กระโดด (ดึง CSS Class มาใส่)
-                L.DomUtil.addClass(targetMarker._icon, 'editing-marker');
+            const m = markerLayers[id];
+            if (m) {
+                originalMarkerPos = m.getLatLng(); m.dragging.enable(); m.setZIndexOffset(1000);
+                if(m._icon) L.DomUtil.addClass(m._icon, 'editing-marker');
             }
         }
 
-        // ฟังก์ชันยกเลิกแก้ไขหมุด
         function cancelEditMarker() {
             if (editingMarkerId && markerLayers[editingMarkerId]) {
                 const m = markerLayers[editingMarkerId];
-                m.dragging.disable();
-                m.setZIndexOffset(0);
+                m.dragging.disable(); m.setZIndexOffset(0);
                 if (m._icon) L.DomUtil.removeClass(m._icon, 'editing-marker');
-                
-                // หากมีการลากย้ายไปแล้ว แต่กดยกเลิก ให้เด้งกลับไปจุดเดิม
                 if (originalMarkerPos) m.setLatLng(originalMarkerPos);
             }
-
-            editingMarkerId = null;
-            originalMarkerPos = null;
-            document.getElementById('markerName').value = '';
-
+            editingMarkerId = null; originalMarkerPos = null; document.getElementById('markerName').value = '';
             document.getElementById('btnUpdateMarker').style.display = 'none';
             document.getElementById('btnCancelMarkerEdit').style.display = 'none';
-            markerControls.classList.remove('edit-mode');
-            markerHelpText.innerText = '* คลิกบนแผนที่เพื่อปักหมุดใหม่ทันที';
+            markerControls.classList.remove('edit-mode'); markerHelpText.innerText = '* คลิกเพื่อปักหมุดใหม่';
         }
-
         document.getElementById('btnCancelMarkerEdit').onclick = cancelEditMarker;
 
-        // บันทึกอัปเดตหมุด
         document.getElementById('btnUpdateMarker').onclick = async () => {
-            if (!editingMarkerId) return;
-            const marker = markerLayers[editingMarkerId];
-            if (!marker) return;
-
-            const pos = marker.getLatLng(); // เอาพิกัดล่าสุดที่ลากไปวาง
+            if (!editingMarkerId || !markerLayers[editingMarkerId]) return;
+            const pos = markerLayers[editingMarkerId].getLatLng();
             try {
                 await updateDoc(doc(db, "markers", editingMarkerId), {
-                    name: document.getElementById('markerName').value.trim(),
-                    color: document.getElementById('markerColor').value,
-                    lat: pos.lat,
-                    lng: pos.lng
+                    name: document.getElementById('markerName').value.trim(), color: document.getElementById('markerColor').value, lat: pos.lat, lng: pos.lng
                 });
-                alert('อัปเดตข้อมูลสถานที่สำเร็จ');
-                originalMarkerPos = pos; // อัปเดตจุด origin ป้องกันการเด้งกลับผิดจุดก่อนเคลียร์
-                cancelEditMarker();
+                originalMarkerPos = pos; cancelEditMarker(); alert('อัปเดตข้อมูลสำเร็จ');
             } catch (error) { console.error(error); alert("อัปเดตไม่สำเร็จ"); }
         };
 
-
-        /* ==================== ระบบจัดการเส้นทางน้ำ (ROUTES) ==================== */
-        
+        // ------------------ ระบบ Routes ------------------
         function clearTempRoute() {
-            currentRouteCoords = [];
-            if (tempPolyline) { map.removeLayer(tempPolyline); tempPolyline = null; }
-            vertexMarkers.forEach(m => map.removeLayer(m));
-            vertexMarkers = [];
+            currentRouteCoords = []; if (tempPolyline) { map.removeLayer(tempPolyline); tempPolyline = null; }
+            vertexMarkers.forEach(m => map.removeLayer(m)); vertexMarkers = [];
         }
         document.getElementById('btnClearTemp').onclick = clearTempRoute;
 
         function addVertexMarker(lat, lng) {
-            const marker = L.marker([lat, lng], { 
-                icon: L.divIcon({ className: 'vertex-marker', html: '<div style="width:14px; height:14px; background:white; border:3px solid #007bff; border-radius:50%;"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }), 
-                draggable: true 
-            }).addTo(map);
-
-            marker.on('drag', (e) => {
-                const idx = vertexMarkers.indexOf(marker);
-                if(idx !== -1) {
-                    currentRouteCoords[idx] = { lat: e.target.getLatLng().lat, lng: e.target.getLatLng().lng };
-                    drawTempLine();
-                }
-            });
-
-            marker.on('contextmenu', () => {
-                const idx = vertexMarkers.indexOf(marker);
-                if(idx !== -1) { map.removeLayer(marker); vertexMarkers.splice(idx, 1); currentRouteCoords.splice(idx, 1); drawTempLine(); }
-            });
-
+            const marker = L.marker([lat, lng], { icon: L.divIcon({ className: 'vertex-marker', html: '<div style="width:14px; height:14px; background:white; border:3px solid #007bff; border-radius:50%;"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }), draggable: true }).addTo(map);
+            marker.on('drag', (e) => { const idx = vertexMarkers.indexOf(marker); if(idx !== -1) { currentRouteCoords[idx] = { lat: e.target.getLatLng().lat, lng: e.target.getLatLng().lng }; drawTempLine(); }});
+            marker.on('contextmenu', () => { const idx = vertexMarkers.indexOf(marker); if(idx !== -1) { map.removeLayer(marker); vertexMarkers.splice(idx, 1); currentRouteCoords.splice(idx, 1); drawTempLine(); }});
             vertexMarkers.push(marker);
         }
 
         function drawTempLine() {
             if (tempPolyline) map.removeLayer(tempPolyline);
             if (currentRouteCoords.length > 0) {
-                const latlngs = currentRouteCoords.map(c => [c.lat, c.lng]);
-                tempPolyline = L.polyline(latlngs, { color: document.getElementById('routeColor').value, weight: document.getElementById('routeWeight').value, className: 'water-flow' }).addTo(map);
+                tempPolyline = L.polyline(currentRouteCoords.map(c => [c.lat, c.lng]), { color: document.getElementById('routeColor').value, weight: document.getElementById('routeWeight').value, className: 'water-flow' }).addTo(map);
             }
         }
 
         document.getElementById('btnSaveRoute').onclick = async () => {
             if (currentRouteCoords.length < 2) return alert('กรุณาวาดอย่างน้อย 2 จุด');
-            const safeCoords = currentRouteCoords.map(p => ({ lat: p.lat, lng: p.lng }));
-
             try {
                 await addDoc(collection(db, "routes"), {
-                    orderNumber: document.getElementById('routeNumber').value,
-                    name: document.getElementById('routeName').value,
-                    color: document.getElementById('routeColor').value,
-                    weight: parseInt(document.getElementById('routeWeight').value),
-                    coordinates: safeCoords
+                    orderNumber: document.getElementById('routeNumber').value, name: document.getElementById('routeName').value, color: document.getElementById('routeColor').value, weight: parseInt(document.getElementById('routeWeight').value), coordinates: currentRouteCoords.map(p => ({ lat: p.lat, lng: p.lng }))
                 });
-                alert("บันทึกสำเร็จ!"); clearTempRoute();
-                document.getElementById('routeNumber').value = ''; document.getElementById('routeName').value = '';
+                clearTempRoute(); document.getElementById('routeNumber').value = ''; document.getElementById('routeName').value = '';
             } catch (error) { console.error(error); }
         };
 
@@ -349,52 +256,42 @@
             adminRouteList.innerHTML = ''; 
             snapshot.docs.forEach((docSnap) => {
                 const data = docSnap.data();
-                const docId = docSnap.id;
-
-                const div = document.createElement('div');
-                div.className = 'admin-list-item';
-                div.innerHTML = `<strong>[${data.orderNumber || '-'}]</strong> ${data.name || 'ไม่มีชื่อ'}
-                    <button class="btn-edit" data-id="${docId}">แก้ไข</button>
-                    <button class="btn-delete" data-id="${docId}">ลบ</button>`;
+                if (!data.coordinates || !Array.isArray(data.coordinates)) return; // ป้องกันข้อมูลพัง
+                
+                const div = document.createElement('div'); div.className = 'admin-list-item';
+                div.innerHTML = `<strong>[${data.orderNumber || '-'}]</strong> ${data.name || 'ไม่มีชื่อ'} <button class="btn-edit">แก้ไข</button><button class="btn-delete">ลบ</button>`;
                 adminRouteList.appendChild(div);
-
-                div.querySelector('.btn-edit').onclick = () => startEditMode(docId, data);
+                div.querySelector('.btn-edit').onclick = () => startEditMode(docSnap.id, data);
                 div.querySelector('.btn-delete').onclick = async () => {
-                    if(confirm(`ต้องการลบเส้นทาง ${data.name}?`)) {
-                        await deleteDoc(doc(db, "routes", docId));
-                        if(editingRouteId === docId) cancelEditMode();
-                    }
+                    if(confirm(`ลบเส้นทาง ${data.name}?`)) { await deleteDoc(doc(db, "routes", docSnap.id)); if(editingRouteId === docSnap.id) cancelEditMode(); }
                 };
+            });
 
-                if (routeLayers[docId]) map.removeLayer(routeLayers[docId]);
-                const latlngs = data.coordinates.map(c => [c.lat, c.lng]);
-                const polyline = L.polyline(latlngs, { color: data.color, weight: data.weight, className: 'water-flow' });
-                
-                let layerGroup;
-                if(latlngs.length > 0 && data.orderNumber) {
-                    const mid = latlngs[Math.floor(latlngs.length / 2)];
-                    const label = L.marker(mid, { icon: L.divIcon({ className: 'custom-div-icon', html: `<div class="route-number-label" style="border-color:${data.color}">${data.orderNumber}</div>`, iconSize:[24,24], iconAnchor:[12,12] }) });
-                    layerGroup = L.layerGroup([polyline, label]).addTo(map);
-                } else { layerGroup = polyline.addTo(map); }
-                
-                routeLayers[docId] = layerGroup;
+            snapshot.docChanges().forEach((change) => {
+                const data = change.doc.data(); const docId = change.doc.id;
+                if (change.type === "removed") {
+                    if (routeLayers[docId]) { map.removeLayer(routeLayers[docId]); delete routeLayers[docId]; }
+                } else {
+                    if (!data.coordinates || !Array.isArray(data.coordinates)) return;
+                    if (routeLayers[docId]) map.removeLayer(routeLayers[docId]);
+                    const latlngs = data.coordinates.map(c => [c.lat, c.lng]);
+                    const polyline = L.polyline(latlngs, { color: data.color, weight: data.weight, className: 'water-flow' });
+                    let layerGroup;
+                    if(latlngs.length > 0 && data.orderNumber) {
+                        const label = L.marker(latlngs[Math.floor(latlngs.length / 2)], { icon: L.divIcon({ className: 'custom-div-icon', html: `<div class="route-number-label" style="border-color:${data.color}">${data.orderNumber}</div>`, iconSize:[24,24], iconAnchor:[12,12] }) });
+                        layerGroup = L.layerGroup([polyline, label]).addTo(map);
+                    } else { layerGroup = polyline.addTo(map); }
+                    routeLayers[docId] = layerGroup;
+                }
             });
         });
 
         function startEditMode(id, data) {
-            cancelEditMode(); 
-            editingRouteId = id;
-            document.getElementById('routeNumber').value = data.orderNumber || '';
-            document.getElementById('routeName').value = data.name || '';
-            document.getElementById('routeColor').value = data.color || '#0073e6';
-            document.getElementById('routeWeight').value = data.weight || 5;
-
-            document.getElementById('btnSaveRoute').style.display = 'none';
-            document.getElementById('btnUpdateRoute').style.display = 'inline-block';
-            document.getElementById('btnCancelEdit').style.display = 'inline-block';
-            document.getElementById('btnClearTemp').style.display = 'none';
+            cancelEditMode(); editingRouteId = id;
+            document.getElementById('routeNumber').value = data.orderNumber || ''; document.getElementById('routeName').value = data.name || '';
+            document.getElementById('routeColor').value = data.color || '#0073e6'; document.getElementById('routeWeight').value = data.weight || 5;
+            document.getElementById('btnSaveRoute').style.display = 'none'; document.getElementById('btnUpdateRoute').style.display = 'inline-block'; document.getElementById('btnCancelEdit').style.display = 'inline-block'; document.getElementById('btnClearTemp').style.display = 'none';
             routeControls.classList.add('edit-mode');
-            
             clearTempRoute();
             currentRouteCoords = data.coordinates.map(c => ({ lat: c.lat, lng: c.lng }));
             currentRouteCoords.forEach(c => addVertexMarker(c.lat, c.lng));
@@ -402,37 +299,22 @@
         }
 
         function cancelEditMode() {
-            editingRouteId = null;
-            document.getElementById('routeNumber').value = '';
-            document.getElementById('routeName').value = '';
-            
-            document.getElementById('btnSaveRoute').style.display = 'inline-block';
-            document.getElementById('btnUpdateRoute').style.display = 'none';
-            document.getElementById('btnCancelEdit').style.display = 'none';
-            document.getElementById('btnClearTemp').style.display = 'inline-block';
-            routeControls.classList.remove('edit-mode');
-            clearTempRoute();
+            editingRouteId = null; document.getElementById('routeNumber').value = ''; document.getElementById('routeName').value = '';
+            document.getElementById('btnSaveRoute').style.display = 'inline-block'; document.getElementById('btnUpdateRoute').style.display = 'none'; document.getElementById('btnCancelEdit').style.display = 'none'; document.getElementById('btnClearTemp').style.display = 'inline-block';
+            routeControls.classList.remove('edit-mode'); clearTempRoute();
         }
-
         document.getElementById('btnCancelEdit').onclick = cancelEditMode;
 
         document.getElementById('btnUpdateRoute').onclick = async () => {
             if(!editingRouteId) return;
             if(currentRouteCoords.length < 2) return alert('เส้นต้องมีอย่างน้อย 2 จุด');
-            const safeCoords = currentRouteCoords.map(p => ({ lat: p.lat, lng: p.lng }));
-
             try {
                 await updateDoc(doc(db, "routes", editingRouteId), {
-                    orderNumber: document.getElementById('routeNumber').value,
-                    name: document.getElementById('routeName').value,
-                    color: document.getElementById('routeColor').value,
-                    weight: parseInt(document.getElementById('routeWeight').value),
-                    coordinates: safeCoords
+                    orderNumber: document.getElementById('routeNumber').value, name: document.getElementById('routeName').value, color: document.getElementById('routeColor').value, weight: parseInt(document.getElementById('routeWeight').value), coordinates: currentRouteCoords.map(p => ({ lat: p.lat, lng: p.lng }))
                 });
-                alert('อัปเดตข้อมูลสำเร็จ'); cancelEditMode();
-            } catch (error) { console.error(error); alert("อัปเดตไม่สำเร็จ"); }
+                alert('อัปเดตสำเร็จ'); cancelEditMode();
+            } catch (error) { console.error(error); }
         };
-
     </script>
 </body>
 </html>
