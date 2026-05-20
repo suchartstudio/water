@@ -20,18 +20,14 @@
         .route-item .number-badge { background: #333; color: white; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 11px; flex-shrink: 0; }
         .route-item .route-name { font-size: 13px; color: #333; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* ป้ายแสดงระดับน้ำในท่อ (Sidebar) */
-        .route-level { 
-            font-size: 11px; padding: 2px 6px; border-radius: 10px; font-weight: bold; 
-            white-space: nowrap; flex-shrink: 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); 
-        }
-        
+        .route-level { font-size: 11px; padding: 2px 6px; border-radius: 10px; font-weight: bold; white-space: nowrap; flex-shrink: 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
         .level-safe { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .level-warn { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
         .level-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
         #map { flex-grow: 1; height: 100%; z-index: 1; }
         
+        /* 🌟 Dashboard Panel ลอยบนแผนที่ (มุมซ้ายบน) */
         #dashboard-panel {
             position: absolute; top: 15px; left: 270px; z-index: 1000;
             background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px);
@@ -44,17 +40,28 @@
         .stat-value.alert { color: #e94560; }
         .stat-value.safe { color: #28a745; }
 
+        /* 🌟 Weather Forecast Panel (มุมขวาล่าง) */
+        #weather-panel {
+            position: absolute; bottom: 30px; right: 15px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px);
+            padding: 12px 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border-top: 4px solid #00aaff; display: flex; flex-direction: column; gap: 8px;
+        }
+        .weather-title { font-size: 13px; font-weight: bold; color: #0f3460; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center;}
+        .weather-title span { font-size: 11px; color: #888; font-weight: normal; }
+        .weather-forecast { display: flex; gap: 12px; }
+        .forecast-item { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 45px; }
+        .fc-time { font-size: 11px; color: #666; font-weight: 600; }
+        .fc-icon { font-size: 20px; margin: 4px 0; }
+        .fc-prob { font-size: 12px; font-weight: 700; }
+        .prob-high { color: #e94560; } /* แดง >70% */
+        .prob-med { color: #facc15; }  /* เหลือง 30-70% */
+        .prob-low { color: #28a745; }  /* เขียว <30% */
+
         .water-flow { stroke-dasharray: 15, 15; animation: flowAnimation 1.5s linear infinite; }
         @keyframes flowAnimation { 100% { stroke-dashoffset: -30; } }
         
-        /* 🌟 ป้ายวงกลมบนแผนที่ (เพิ่ม transition ให้การเปลี่ยนสีดูนุ่มนวล) */
-        .route-number-label { 
-            border: 2px solid #333; border-radius: 50%; font-weight: bold; 
-            font-size: 13px; width: 22px; height: 22px; text-align: center; 
-            line-height: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); 
-            transition: all 0.3s ease; 
-        }
-        
+        .route-number-label { border: 2px solid #333; border-radius: 50%; font-weight: bold; font-size: 13px; width: 22px; height: 22px; text-align: center; line-height: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: all 0.3s ease; }
         .custom-label { background: rgba(255,255,255,0.95); border: 1px solid #ccc; padding: 4px 8px; border-radius: 6px; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         
         .sensor-icon { background: #fff; border: 3px solid; border-radius: 50px; text-align: center; line-height: 28px; font-weight: bold; font-size: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
@@ -71,6 +78,8 @@
             #sidebar { width: 100%; height: 35vh; order: 2; } 
             #map { height: 65vh; order: 1; } 
             #dashboard-panel { top: 10px; left: 10px; right: 10px; flex-wrap: wrap; justify-content: space-between; }
+            #weather-panel { bottom: 20px; right: 10px; left: 10px; flex-direction: column; align-items: stretch; }
+            .weather-forecast { justify-content: space-between; }
         }
     </style>
 </head>
@@ -96,6 +105,17 @@
         </div>
     </div>
 
+    <!-- 🌟 โครงสร้าง HTML ป้ายพยากรณ์อากาศ -->
+    <div id="weather-panel">
+        <div class="weather-title">
+            🌦️ โอกาสเกิดฝนตก (ขอนแก่น)
+            <span>24 ชม. ข้างหน้า</span>
+        </div>
+        <div class="weather-forecast" id="weather-forecast-data">
+            <!-- ข้อมูลจะถูกสร้างอัตโนมัติด้วย JavaScript -->
+        </div>
+    </div>
+
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -105,6 +125,41 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
+        // ==========================================
+        // 🌦️ ระบบพยากรณ์อากาศล่วงหน้า (จำลองข้อมูลให้ดู Real-time)
+        // ==========================================
+        function generateWeatherForecast() {
+            const container = document.getElementById('weather-forecast-data');
+            const currentHour = new Date().getHours();
+            
+            // ข้อมูลจำลอง (จำลองแนวโน้มพายุเข้าในอีก 6-9 ชม. ข้างหน้า)
+            const forecastPattern = [
+                { offset: 2, prob: 15, icon: '⛅' },  // อีก 2 ชม.
+                { offset: 5, prob: 45, icon: '🌦️' },  // อีก 5 ชม.
+                { offset: 8, prob: 85, icon: '⛈️' },  // อีก 8 ชม.
+                { offset: 12, prob: 60, icon: '🌧️' }, // อีก 12 ชม.
+                { offset: 18, prob: 10, icon: '☁️' }   // อีก 18 ชม.
+            ];
+
+            forecastPattern.forEach(fc => {
+                let fcHour = (currentHour + fc.offset) % 24;
+                let timeStr = `${fcHour.toString().padStart(2, '0')}:00`;
+                let probClass = fc.prob >= 70 ? 'prob-high' : (fc.prob >= 40 ? 'prob-med' : 'prob-low');
+
+                container.innerHTML += `
+                    <div class="forecast-item">
+                        <span class="fc-time">${timeStr}</span>
+                        <span class="fc-icon">${fc.icon}</span>
+                        <span class="fc-prob ${probClass}">${fc.prob}%</span>
+                    </div>
+                `;
+            });
+        }
+        generateWeatherForecast();
+
+        // ==========================================
+        // ตั้งค่า Firebase
+        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyCDqVrQxMbaw_xqHN6MkCaftyLc6RmuSVw",
             authDomain: "maps-2336c.firebaseapp.com",
@@ -195,23 +250,19 @@
         const markerLayers = {};
         const routeListUI = document.getElementById('routeListUI');
         
-        // 🌟 ตัวแปรเก็บข้อมูลเพื่อใช้สร้าง Icon สีใหม่
         const simulatedWaterLevels = {};
         const routeLabelMarkers = {}; 
         const routeDataStore = {};    
 
-        // 🌟 ฟังก์ชันคำนวณสีพื้นหลังและสีตัวหนังสือ ตามระดับเปอร์เซ็นต์
         function getLevelStyle(waterLevel) {
             if (waterLevel >= 80) return { bg: '#f8d7da', text: '#721c24', class: 'level-danger' }; // แดง
             if (waterLevel >= 50) return { bg: '#fff3cd', text: '#856404', class: 'level-warn' };   // เหลือง
             return { bg: '#d4edda', text: '#155724', class: 'level-safe' };                         // เขียว
         }
 
-        // 🌟 ฟังก์ชันอัปเดต UI (Sidebar และ แผนที่)
         function updateWaterLevelUI(docId, waterLevel) {
             const style = getLevelStyle(waterLevel);
             
-            // 1. อัปเดตเมนูด้านซ้ายและจัดเรียงลำดับใหม่
             const li = document.getElementById(`li-${docId}`);
             if (li) {
                 const levelBadge = li.querySelector('.route-level');
@@ -219,10 +270,9 @@
                     levelBadge.innerHTML = `💧 ${waterLevel}%`;
                     levelBadge.className = `route-level ${style.class}`;
                 }
-                li.style.order = -waterLevel; // เปอร์เซ็นต์มากไปน้อย
+                li.style.order = -waterLevel;
             }
 
-            // 2. อัปเดตสีของป้ายวงกลมบนแผนที่
             const labelMarker = routeLabelMarkers[docId];
             const data = routeDataStore[docId];
             if (labelMarker && data) {
@@ -231,11 +281,10 @@
                     html: `<div class="route-number-label" style="border-color:${data.color}; background-color:${style.bg}; color:${style.text};">${data.orderNumber}</div>`, 
                     iconSize: [22, 22], iconAnchor: [11, 11] 
                 });
-                labelMarker.setIcon(newIcon); // ส่งคำสั่งเปลี่ยน Icon สีใหม่ลงแผนที่
+                labelMarker.setIcon(newIcon);
             }
         }
 
-        // สุ่มตัวเลขทุกๆ 4 วินาที ให้เปลี่ยนแปลงทีละนิด
         setInterval(() => {
             for (const docId in simulatedWaterLevels) {
                 let currentLevel = simulatedWaterLevels[docId];
@@ -246,7 +295,7 @@
                 if (currentLevel < 15) currentLevel = 15;
 
                 simulatedWaterLevels[docId] = currentLevel;
-                updateWaterLevelUI(docId, currentLevel); // อัปเดตทั้ง Sidebar และ Map
+                updateWaterLevelUI(docId, currentLevel);
             }
         }, 4000); 
 
@@ -290,10 +339,8 @@
                     if (!data.coordinates || !Array.isArray(data.coordinates)) return; 
                     if (routeLayers[docId]) { map.removeLayer(routeLayers[docId]); document.getElementById(`li-${docId}`)?.remove(); }
 
-                    // เก็บข้อมูลไว้สร้าง Icon
                     routeDataStore[docId] = data;
 
-                    // สุ่มค่าเริ่มต้นครั้งแรก
                     if (!simulatedWaterLevels[docId]) {
                         simulatedWaterLevels[docId] = Math.floor(Math.random() * 60) + 20; 
                     }
@@ -306,7 +353,6 @@
                     let layerGroup;
                     if(latlngs.length > 0 && data.orderNumber) {
                         const midPoint = latlngs[Math.floor(latlngs.length / 2)];
-                        // สร้าง Icon ป้ายวงกลมพร้อมกับสีแจ้งเตือนครั้งแรก
                         const numIcon = L.divIcon({ 
                             className: 'custom-div-icon', 
                             html: `<div class="route-number-label" style="border-color:${data.color}; background-color:${style.bg}; color:${style.text};">${data.orderNumber}</div>`, 
@@ -314,14 +360,13 @@
                         });
                         const labelMarker = L.marker(midPoint, { icon: numIcon });
                         
-                        routeLabelMarkers[docId] = labelMarker; // เก็บ Reference ของหมุดไว้
+                        routeLabelMarkers[docId] = labelMarker;
                         layerGroup = L.layerGroup([polyline, labelMarker]).addTo(map);
                     } else { 
                         layerGroup = polyline.addTo(map); 
                     }
                     routeLayers[docId] = layerGroup;
 
-                    // สร้างแถบรายชื่อด้านซ้าย
                     const li = document.createElement('li');
                     li.className = 'route-item'; li.id = `li-${docId}`;
                     
@@ -334,7 +379,6 @@
                     `;
                     routeListUI.appendChild(li);
 
-                    // อัปเดตสีตัวเลขและจัดเรียงลำดับทันทีเมื่อโหลดเสร็จ
                     updateWaterLevelUI(docId, waterLevel);
                 }
             });
