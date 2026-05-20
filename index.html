@@ -3,56 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>แผนที่ระบายน้ำเมืองขอนแก่น</title>
+    <title>Smart City Water Dashboard - ขอนแก่น</title>
     <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600;700&display=swap" rel="stylesheet">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
-    <!-- Leaflet Velocity CSS (สำหรับทิศทางลม) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-velocity@1.2.3/dist/leaflet-velocity.css" />
-
     <style>
-        body { margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; display: flex; height: 100vh; overflow: hidden; background: #f4f4f4;}
+        body { margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; display: flex; height: 100vh; overflow: hidden; background: #1a1a2e;}
         
-        #sidebar { width: 260px; background: white; box-shadow: 2px 0 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 1000; }
-        .sidebar-header { background: #0073e6; color: white; padding: 10px; text-align: center; font-size: 15px; font-weight: bold; }
-        
-        .route-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; }
-        .route-item { padding: 8px 12px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
-        .route-item .number-badge { background: #333; color: white; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 12px; flex-shrink: 0; }
-        .route-item .route-name { font-size: 13px; color: #333; word-break: break-word; }
+        /* Sidebar ด้านข้าง */
+        #sidebar { width: 280px; background: #fff; box-shadow: 2px 0 10px rgba(0,0,0,0.2); display: flex; flex-direction: column; z-index: 1000; }
+        .sidebar-header { background: #0f3460; color: white; padding: 15px 10px; text-align: center; font-size: 16px; font-weight: bold; letter-spacing: 1px; }
+        .route-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; background: #f4f6f9; }
+        .route-item { padding: 10px 15px; border-bottom: 1px solid #e1e5ee; display: flex; align-items: center; gap: 12px; background: #fff; margin: 4px 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);}
+        .route-item .number-badge { background: #e94560; color: white; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 12px; flex-shrink: 0; }
+        .route-item .route-name { font-size: 14px; color: #333; font-weight: 600; }
         
         #map { flex-grow: 1; height: 100%; z-index: 1; }
         
+        /* Dashboard Panel ลอยบนแผนที่ */
+        #dashboard-panel {
+            position: absolute; top: 20px; left: 300px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px);
+            padding: 15px 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border-left: 5px solid #0f3460; display: flex; gap: 20px;
+        }
+        .stat-box { display: flex; flex-direction: column; }
+        .stat-label { font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase;}
+        .stat-value { font-size: 20px; color: #0f3460; font-weight: 700; }
+        .stat-value.alert { color: #e94560; }
+        .stat-value.safe { color: #28a745; }
+
+        /* กราฟิกและ Animation แผนที่ */
         .water-flow { stroke-dasharray: 15, 15; animation: flowAnimation 1.5s linear infinite; }
         @keyframes flowAnimation { 100% { stroke-dashoffset: -30; } }
         
-        .route-number-label { background: white; border: 2px solid #333; border-radius: 50%; color: #333; font-family: 'Chakra Petch', sans-serif; font-weight: bold; font-size: 13px; width: 22px; height: 22px; text-align: center; line-height: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        .custom-label { background: rgba(255,255,255,0.9); border: 1px solid #ccc; padding: 2px 6px; border-radius: 4px; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        /* Styles สำหรับ Custom Icons ของ Smart City */
+        .route-number-label { background: white; border: 2px solid #333; border-radius: 50%; color: #333; font-weight: bold; font-size: 13px; width: 22px; height: 22px; text-align: center; line-height: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .custom-label { background: rgba(255,255,255,0.95); border: 1px solid #ccc; padding: 4px 8px; border-radius: 6px; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         
+        /* สไตล์ไอคอน IoT/Sensor */
+        .sensor-icon { background: #fff; border: 3px solid; border-radius: 50px; text-align: center; line-height: 28px; font-weight: bold; font-size: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
+        .sensor-safe { border-color: #28a745; color: #28a745; }
+        .sensor-warn { border-color: #ffc107; color: #d39e00; }
+        .sensor-danger { border-color: #dc3545; color: #dc3545; animation: pulseRed 1s infinite alternate; }
+        @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); } 100% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); } }
+
+        .pump-icon { font-size: 20px; line-height: 24px; text-align: center; background: white; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 2px solid #0073e6;}
+        .cctv-icon { font-size: 18px; line-height: 24px; text-align: center; background: #333; color: white; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+
         @media (max-width: 768px) { 
             body { flex-direction: column; } 
-            #sidebar { width: 100%; height: 35vh; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); order: 2; } 
+            #sidebar { width: 100%; height: 35vh; order: 2; } 
             #map { height: 65vh; order: 1; } 
+            #dashboard-panel { top: 10px; left: 10px; right: 10px; flex-wrap: wrap; justify-content: space-between; }
         }
     </style>
 </head>
 <body>
 
     <div id="sidebar">
-        <div class="sidebar-header">เส้นทางระบายน้ำ</div>
+        <div class="sidebar-header">📍 เส้นทางระบายน้ำหลัก</div>
         <ul id="routeListUI" class="route-list"></ul>
     </div>
+    
+    <div id="dashboard-panel">
+        <div class="stat-box">
+            <span class="stat-label">ระดับน้ำบึงแก่นนคร</span>
+            <span class="stat-value safe">65% (ปกติ)</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-label">จุดเสี่ยงน้ำท่วมขัง</span>
+            <span class="stat-value alert">2 จุด</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-label">สถานีสูบน้ำทำงาน</span>
+            <span class="stat-value">3 / 5 สถานี</span>
+        </div>
+    </div>
+
     <div id="map"></div>
 
-    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <!-- Leaflet Velocity JS (สำหรับทิศทางลม) -->
-    <script src="https://unpkg.com/leaflet-velocity@1.2.3/dist/leaflet-velocity.js"></script>
 
-    <!-- Firebase JS (Type Module) -->
+    <!-- Firebase JS -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
@@ -70,71 +104,98 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // สร้างแผนที่ฐาน
+        // แผนที่ฐานแบบโทนสีเทา (CartoDB Positron) เพื่อให้ข้อมูล Dashboard เด่นขึ้น
         const map = L.map('map').setView([16.4322, 102.8236], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { 
             maxZoom: 19,
-            attribution: '© OpenStreetMap'
+            attribution: '© OpenStreetMap | Smart City Data Simulated'
         }).addTo(map);
 
         // ==========================================
-        // 🌬️ ระบบแสดงแอนิเมชันทิศทางลม (Leaflet Velocity)
+        // 📊 1. เลเยอร์: เซ็นเซอร์ระดับน้ำ IoT (จำลองข้อมูล)
         // ==========================================
-        
-        // ดึงข้อมูลพิกัดลม (ตัวอย่าง JSON)
-        fetch('https://raw.githubusercontent.com/onaci/leaflet-velocity/master/demo/wind-global.json')
-            .then(res => res.json())
-            .then(data => {
-                const velocityLayer = L.velocityLayer({
-                    displayValues: true,
-                    displayOptions: {
-                        velocityType: 'ทิศทางลม',
-                        position: 'bottomleft',
-                        emptyString: 'ไม่มีข้อมูลลม',
-                        speedUnit: 'k/h'
-                    },
-                    data: data,           // ข้อมูลลม
-                    maxVelocity: 15,      // ความเร็วสูงสุดเพื่อใช้คำนวณสี
-                    velocityScale: 0.005, // ขนาดความยาวของเส้นลม
-                    colorScale: [
-                        "#0011ff", // สีลมเอื่อย
-                        "#00aaff", 
-                        "#00ffaa", 
-                        "#ffff00", 
-                        "#ffaa00", 
-                        "#ff0000"  // สีลมแรง
-                    ]
-                });
-
-                // สร้างเมนู เปิด/ปิด ทิศทางลมที่มุมขวาบน
-                const overlayMaps = {
-                    "🌬️ แสดงทิศทางลม (แอนิเมชัน)": velocityLayer
-                };
-                L.control.layers(null, overlayMaps, { collapsed: false }).addTo(map);
-                
-                // เปิดให้แสดงลมขึ้นมาทันที
-                velocityLayer.addTo(map);
-            })
-            .catch(err => console.error("โหลดข้อมูลลมไม่สำเร็จ:", err));
-
+        const sensorsGroup = L.layerGroup().addTo(map);
+        const sensorsData = [
+            { name: "บึงแก่นนคร", lat: 16.417, lng: 102.835, level: 65, status: "safe" },
+            { name: "บึงทุ่งสร้าง", lat: 16.445, lng: 102.842, level: 78, status: "warn" },
+            { name: "ประตูระบายน้ำ D8", lat: 16.425, lng: 102.855, level: 92, status: "danger" }
+        ];
+        sensorsData.forEach(s => {
+            const icon = L.divIcon({
+                className: `sensor-icon sensor-${s.status}`,
+                html: `${s.level}%`,
+                iconSize: [34, 34], iconAnchor: [17, 17]
+            });
+            L.marker([s.lat, s.lng], { icon: icon }).bindTooltip(`<b>เซ็นเซอร์: ${s.name}</b><br>ระดับน้ำ: ${s.level}%`, {className: 'custom-label'}).addTo(sensorsGroup);
+        });
 
         // ==========================================
-        // 📍 ระบบจัดการข้อมูลหมุดและเส้นทางน้ำ (Firebase)
+        // ⚙️ 2. เลเยอร์: สถานีสูบน้ำ (Pump Stations)
+        // ==========================================
+        const pumpsGroup = L.layerGroup().addTo(map);
+        const pumpsData = [
+            { name: "สถานีสูบน้ำหน้าเมือง", lat: 16.428, lng: 102.838, active: true },
+            { name: "สถานีสูบน้ำหนองแวง", lat: 16.412, lng: 102.825, active: false },
+            { name: "สถานีคลองร่องเหมือง", lat: 16.435, lng: 102.840, active: true }
+        ];
+        pumpsData.forEach(p => {
+            const icon = L.divIcon({
+                className: 'pump-icon',
+                html: p.active ? '⚙️' : '⏸️',
+                iconSize: [28, 28], iconAnchor: [14, 14]
+            });
+            const statusText = p.active ? '<span style="color:green">กำลังทำงาน</span>' : '<span style="color:gray">หยุดพัก</span>';
+            L.marker([p.lat, p.lng], { icon: icon }).bindTooltip(`<b>${p.name}</b><br>สถานะ: ${statusText}`, {className: 'custom-label'}).addTo(pumpsGroup);
+        });
+
+        // ==========================================
+        // ⚠️ 3. เลเยอร์: พื้นที่เสี่ยงน้ำท่วม (Flood Risk Zones)
+        // ==========================================
+        const riskGroup = L.layerGroup().addTo(map);
+        L.circle([16.438, 102.825], { color: 'red', fillColor: '#f03', fillOpacity: 0.3, radius: 400 })
+            .bindTooltip("จุดเสี่ยง: สามแยกอุโมงค์มิตรภาพ", {className: 'custom-label'}).addTo(riskGroup);
+        L.circle([16.455, 102.820], { color: 'orange', fillColor: '#ff9900', fillOpacity: 0.3, radius: 500 })
+            .bindTooltip("จุดเสี่ยง: บริเวณกังสดาล มข.", {className: 'custom-label'}).addTo(riskGroup);
+
+        // ==========================================
+        // 📹 4. เลเยอร์: กล้อง CCTV
+        // ==========================================
+        const cctvGroup = L.layerGroup(); // ปิดไว้เป็นค่าเริ่มต้นให้แผนที่ไม่รกเกินไป
+        const cctvData = [
+            { name: "CCTV มิตรภาพ-ศรีจันทร์", lat: 16.431, lng: 102.826 },
+            { name: "CCTV แยกประตูเมือง", lat: 16.429, lng: 102.823 }
+        ];
+        cctvData.forEach(c => {
+            const icon = L.divIcon({ className: 'cctv-icon', html: '📹', iconSize: [26, 26], iconAnchor: [13, 13] });
+            L.marker([c.lat, c.lng], { icon: icon }).bindTooltip(`<b>${c.name}</b><br><i style="font-size:11px; color:gray;">(คลิกเพื่อดูภาพสด - จำลอง)</i>`, {className: 'custom-label'}).addTo(cctvGroup);
+        });
+
+        // ควบคุม Layer ทั้งหมดที่มุมขวาบน
+        const overlayMaps = {
+            "📊 เซ็นเซอร์ระดับน้ำ IoT": sensorsGroup,
+            "⚙️ สถานีสูบน้ำ": pumpsGroup,
+            "⚠️ พื้นที่เสี่ยงน้ำท่วมขัง": riskGroup,
+            "📹 กล้องวงจรปิด (CCTV)": cctvGroup
+        };
+        L.control.layers(null, overlayMaps, { collapsed: false }).addTo(map);
+
+
+        // ==========================================
+        // 📍 ดึงข้อมูลเส้นทางและหมุดของคุณจาก Firebase (ระบบเดิม)
         // ==========================================
         const routeLayers = {};
         const markerLayers = {};
         const routeListUI = document.getElementById('routeListUI');
 
-        // ข้อมูล Markers
+        // ข้อมูล Markers (หมุดที่แอดมินปัก)
         onSnapshot(collection(db, "markers"), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 const data = change.doc.data();
                 const docId = change.doc.id;
-
                 if (change.type === "removed") {
                     if (markerLayers[docId]) { map.removeLayer(markerLayers[docId]); delete markerLayers[docId]; }
                 } else {
-                    if (typeof data.lat === 'undefined' || typeof data.lng === 'undefined') return;
+                    if (typeof data.lat === 'undefined') return;
                     if (markerLayers[docId]) map.removeLayer(markerLayers[docId]);
 
                     const svgIcon = L.divIcon({
@@ -149,7 +210,7 @@
             });
         });
 
-        // ข้อมูล Routes
+        // ข้อมูล Routes (เส้นทางน้ำที่แอดมินลาก)
         onSnapshot(collection(db, "routes"), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 const data = change.doc.data();
@@ -161,41 +222,25 @@
                     delete routeLayers[docId];
                 } else {
                     if (!data.coordinates || !Array.isArray(data.coordinates)) return; 
-                    
                     if (routeLayers[docId]) { map.removeLayer(routeLayers[docId]); document.getElementById(`li-${docId}`)?.remove(); }
 
                     const latlngs = data.coordinates.map(c => [c.lat, c.lng]);
-                    const polyline = L.polyline(latlngs, { 
-                        color: data.color || '#0073e6', 
-                        weight: data.weight || 4, 
-                        className: 'water-flow' 
-                    });
+                    const polyline = L.polyline(latlngs, { color: data.color || '#0073e6', weight: data.weight || 4, className: 'water-flow' });
 
                     let layerGroup;
                     if(latlngs.length > 0 && data.orderNumber) {
                         const midPoint = latlngs[Math.floor(latlngs.length / 2)];
-                        const numIcon = L.divIcon({ 
-                            className: 'custom-div-icon', 
-                            html: `<div class="route-number-label" style="border-color:${data.color}">${data.orderNumber}</div>`, 
-                            iconSize: [22, 22], iconAnchor: [11, 11] 
-                        });
+                        const numIcon = L.divIcon({ className: 'custom-div-icon', html: `<div class="route-number-label" style="border-color:${data.color}">${data.orderNumber}</div>`, iconSize: [22, 22], iconAnchor: [11, 11] });
                         const labelMarker = L.marker(midPoint, { icon: numIcon });
                         layerGroup = L.layerGroup([polyline, labelMarker]).addTo(map);
-                    } else { 
-                        layerGroup = polyline.addTo(map); 
-                    }
+                    } else { layerGroup = polyline.addTo(map); }
                     routeLayers[docId] = layerGroup;
 
                     const li = document.createElement('li');
                     li.className = 'route-item'; li.id = `li-${docId}`;
-                    
                     const orderNum = parseInt(data.orderNumber);
                     li.style.order = isNaN(orderNum) ? 9999 : orderNum; 
-
-                    li.innerHTML = `
-                        <div class="number-badge" style="background-color: ${data.color || '#333'}">${data.orderNumber || '-'}</div>
-                        <div class="route-name">${data.name || 'ไม่มีชื่อ'}</div>
-                    `;
+                    li.innerHTML = `<div class="number-badge" style="background-color: ${data.color || '#e94560'}">${data.orderNumber || '-'}</div><div class="route-name">${data.name || 'ไม่มีชื่อ'}</div>`;
                     routeListUI.appendChild(li);
                 }
             });
