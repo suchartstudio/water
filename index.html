@@ -8,57 +8,62 @@
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600;700&display=swap" rel="stylesheet">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- 🏢 OSMBuildings JS (สำหรับแสดงตึก 3D) -->
+    <script src="https://cdn.osmbuildings.org/classic/0.2.2b/OSMBuildings-Leaflet.js"></script>
+
     <style>
-        body { margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; display: flex; height: 100vh; overflow: hidden; background: #1a1a2e;}
+        body { margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; display: flex; height: 100vh; overflow: hidden; background: #0b0c10;}
         
-        /* Sidebar ด้านข้าง (Compact Style) */
-        #sidebar { width: 250px; background: #fff; box-shadow: 2px 0 10px rgba(0,0,0,0.2); display: flex; flex-direction: column; z-index: 1000; }
-        .sidebar-header { background: #0f3460; color: white; padding: 10px 8px; text-align: center; font-size: 14px; font-weight: bold; letter-spacing: 0.5px; }
-        .route-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; background: #f4f6f9; }
+        /* Sidebar ด้านข้าง */
+        #sidebar { width: 250px; background: #1f2833; box-shadow: 2px 0 10px rgba(0,0,0,0.5); display: flex; flex-direction: column; z-index: 1000; color: white;}
+        .sidebar-header { background: #45a29e; color: #0b0c10; padding: 10px 8px; text-align: center; font-size: 14px; font-weight: bold; letter-spacing: 0.5px; }
+        .route-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; background: #12161c; }
         
-        .route-item { padding: 6px 10px; border-bottom: 1px solid #e1e5ee; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #fff; margin: 3px 6px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);}
+        .route-item { padding: 6px 10px; border-bottom: 1px solid #1f2833; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #1a1f26; margin: 3px 6px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.2);}
         .route-item-left { display: flex; align-items: center; gap: 8px; flex-grow: 1; overflow: hidden; }
-        .route-item .number-badge { background: #e94560; color: white; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 11px; flex-shrink: 0; }
-        .route-item .route-name { font-size: 13px; color: #333; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .route-item .number-badge { background: #66fcf1; color: #0b0c10; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 11px; flex-shrink: 0; }
+        .route-item .route-name { font-size: 13px; color: #c5c6c7; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
         /* ป้ายแสดงระดับน้ำในท่อ */
-        .route-level { font-size: 11px; padding: 2px 6px; border-radius: 10px; font-weight: bold; white-space: nowrap; flex-shrink: 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
-        .level-safe { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .level-warn { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-        .level-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; animation: pulseLevel 1s infinite alternate;}
-        @keyframes pulseLevel { 0% { opacity: 1; } 100% { opacity: 0.6; } }
+        .route-level { font-size: 11px; padding: 2px 6px; border-radius: 10px; font-weight: bold; white-space: nowrap; flex-shrink: 0; }
+        .level-safe { background: rgba(40, 167, 69, 0.2); color: #4ade80; border: 1px solid #4ade80; }
+        .level-warn { background: rgba(255, 193, 7, 0.2); color: #facc15; border: 1px solid #facc15; }
+        .level-danger { background: rgba(220, 53, 69, 0.2); color: #f87171; border: 1px solid #f87171; animation: pulseLevel 1s infinite alternate;}
+        @keyframes pulseLevel { 0% { opacity: 1; box-shadow: 0 0 5px #f87171; } 100% { opacity: 0.6; } }
 
-        #map { flex-grow: 1; height: 100%; z-index: 1; }
+        #map { flex-grow: 1; height: 100%; z-index: 1; background: #0b0c10; }
         
-        /* Dashboard Panel ลอยบนแผนที่ */
+        /* Dashboard Panel */
         #dashboard-panel {
             position: absolute; top: 15px; left: 270px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px);
-            padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            border-left: 4px solid #0f3460; display: flex; gap: 15px;
+            background: rgba(11, 12, 16, 0.85); backdrop-filter: blur(8px);
+            padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border-left: 4px solid #66fcf1; border-right: 1px solid #1f2833; border-top: 1px solid #1f2833; border-bottom: 1px solid #1f2833;
+            display: flex; gap: 20px;
         }
         .stat-box { display: flex; flex-direction: column; }
-        .stat-label { font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase;}
-        .stat-value { font-size: 18px; color: #0f3460; font-weight: 700; }
-        .stat-value.alert { color: #e94560; }
-        .stat-value.safe { color: #28a745; }
+        .stat-label { font-size: 11px; color: #8a9099; font-weight: 600; text-transform: uppercase;}
+        .stat-value { font-size: 18px; color: #c5c6c7; font-weight: 700; }
+        .stat-value.alert { color: #f87171; text-shadow: 0 0 5px rgba(248, 113, 113, 0.5); }
+        .stat-value.safe { color: #4ade80; text-shadow: 0 0 5px rgba(74, 222, 128, 0.5); }
 
         /* กราฟิกแผนที่ */
         .water-flow { stroke-dasharray: 15, 15; animation: flowAnimation 1.5s linear infinite; }
         @keyframes flowAnimation { 100% { stroke-dashoffset: -30; } }
         
-        .route-number-label { background: white; border: 2px solid #333; border-radius: 50%; color: #333; font-weight: bold; font-size: 13px; width: 22px; height: 22px; text-align: center; line-height: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        .custom-label { background: rgba(255,255,255,0.95); border: 1px solid #ccc; padding: 4px 8px; border-radius: 6px; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .route-number-label { background: #1f2833; border: 2px solid; border-radius: 50%; color: white; font-weight: bold; font-size: 13px; width: 22px; height: 22px; text-align: center; line-height: 18px; box-shadow: 0 0 8px rgba(0,0,0,0.8); }
+        .custom-label { background: rgba(11, 12, 16, 0.9); border: 1px solid #45a29e; color: #c5c6c7; padding: 4px 8px; border-radius: 6px; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         
         /* สไตล์ไอคอน IoT/Sensor */
-        .sensor-icon { background: #fff; border: 3px solid; border-radius: 50px; text-align: center; line-height: 28px; font-weight: bold; font-size: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
-        .sensor-safe { border-color: #28a745; color: #28a745; }
-        .sensor-warn { border-color: #ffc107; color: #d39e00; }
-        .sensor-danger { border-color: #dc3545; color: #dc3545; animation: pulseRed 1s infinite alternate; }
-        @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); } 100% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); } }
+        .sensor-icon { background: #0b0c10; border: 3px solid; border-radius: 50px; text-align: center; line-height: 28px; font-weight: bold; font-size: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
+        .sensor-safe { border-color: #4ade80; color: #4ade80; box-shadow: 0 0 10px rgba(74, 222, 128, 0.3); }
+        .sensor-warn { border-color: #facc15; color: #facc15; box-shadow: 0 0 10px rgba(250, 204, 21, 0.3); }
+        .sensor-danger { border-color: #f87171; color: #f87171; animation: pulseRed 1s infinite alternate; }
+        @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.6); } 100% { box-shadow: 0 0 0 10px rgba(248, 113, 113, 0); } }
 
-        .pump-icon { font-size: 20px; line-height: 24px; text-align: center; background: white; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 2px solid #0073e6;}
-        .cctv-icon { font-size: 18px; line-height: 24px; text-align: center; background: #333; color: white; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .pump-icon { font-size: 20px; line-height: 24px; text-align: center; background: #1f2833; border-radius: 50%; box-shadow: 0 0 10px rgba(0,0,0,0.5); border: 2px solid #66fcf1;}
+        .cctv-icon { font-size: 18px; line-height: 24px; text-align: center; background: #0b0c10; color: white; border-radius: 4px; box-shadow: 0 0 10px rgba(0,0,0,0.5); border: 1px solid #8a9099; }
 
         @media (max-width: 768px) { 
             body { flex-direction: column; } 
@@ -113,33 +118,45 @@
         const db = getFirestore(app);
 
         // ==========================================
-        // 🗺️ ระบบ Base Maps (สลับแผนที่ฐาน)
+        // 🗺️ ระบบ Base Maps
         // ==========================================
-        
-        // 1. แผนที่แบบคลีน สบายตา (CartoDB Voyager)
+        // แผนที่แบบ Dark Mode (เข้ากับตึก 3D และให้ความรู้สึก Smart City)
+        const darkMap = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
+            maxZoom: 19, attribution: '© OpenStreetMap | CartoDB Dark'
+        });
+
         const voyagerMap = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { 
-            maxZoom: 19,
-            attribution: '© OpenStreetMap | Smart City Data Simulated'
+            maxZoom: 19, attribution: '© OpenStreetMap | CartoDB Voyager'
         });
 
-        // 2. แผนที่ภูมิประเทศ แสดงเส้นความชันและระดับความสูง (OpenTopoMap)
         const topoMap = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-            maxNativeZoom: 17, // โหลดภาพถึงแค่ระดับซูม 17
-            maxZoom: 19,       // อนุญาตให้ซูมขยายต่อได้ถึง 19 โดยภาพไม่พัง
-            attribution: '© OpenStreetMap contributors, SRTM | OpenTopoMap'
+            maxNativeZoom: 17, maxZoom: 19, attribution: '© OpenStreetMap | OpenTopoMap'
         });
 
-        // สร้างแผนที่และกำหนดเลเยอร์เริ่มต้น
+        // 🌟 ซูมเข้ามาที่ระดับ 15 เพื่อให้เห็นตึก 3 มิติชัดเจนขึ้น
         const map = L.map('map', {
             center: [16.4322, 102.8236],
-            zoom: 13,
-            layers: [voyagerMap] // ค่าเริ่มต้นให้เป็นแบบคลีน
+            zoom: 15, 
+            layers: [darkMap] 
         });
 
         const baseMaps = {
-            "🗺️ แผนที่พื้นฐาน (สะอาดตา)": voyagerMap,
-            "⛰️ แผนที่ภูมิประเทศ (เส้นความชัน)": topoMap
+            "🌃 แผนที่ Smart City (โทนมืด)": darkMap,
+            "🗺️ แผนที่พื้นฐาน (โทนสว่าง)": voyagerMap,
+            "⛰️ แผนที่ภูมิประเทศ (ความชัน)": topoMap
         };
+
+        // ==========================================
+        // 🏢 ระบบอาคาร 3D (OSMBuildings)
+        // ==========================================
+        // ดึงความสูงอาคารขึ้นมาเป็น 3 มิติ พร้อมตั้งสีสไตล์ Hologram / Cyber
+        const osmb = new OSMBuildings(map)
+            .load('https://{s}.data.osmbuildings.org/0.2/anonymous/tile/{z}/{x}/{y}.json')
+            .style({ 
+                wallColor: 'rgba(69, 162, 158, 0.3)', // สีกระจกโปร่งใส
+                roofColor: 'rgba(102, 252, 241, 0.4)' // สีหลังคาเรืองแสงนิดๆ
+            });
+
 
         // ==========================================
         // 📊 เลเยอร์ข้อมูล Dashboard
@@ -163,13 +180,13 @@
         ];
         pumpsData.forEach(p => {
             const icon = L.divIcon({ className: 'pump-icon', html: p.active ? '⚙️' : '⏸️', iconSize: [28, 28], iconAnchor: [14, 14] });
-            const statusText = p.active ? '<span style="color:green">กำลังทำงาน</span>' : '<span style="color:gray">หยุดพัก</span>';
+            const statusText = p.active ? '<span style="color:#4ade80">กำลังทำงาน</span>' : '<span style="color:#8a9099">หยุดพัก</span>';
             L.marker([p.lat, p.lng], { icon: icon }).bindTooltip(`<b>${p.name}</b><br>สถานะ: ${statusText}`, {className: 'custom-label'}).addTo(pumpsGroup);
         });
 
         const riskGroup = L.layerGroup().addTo(map);
-        L.circle([16.438, 102.825], { color: 'red', fillColor: '#f03', fillOpacity: 0.3, radius: 400 }).bindTooltip("จุดเสี่ยง: สามแยกอุโมงค์มิตรภาพ", {className: 'custom-label'}).addTo(riskGroup);
-        L.circle([16.455, 102.820], { color: 'orange', fillColor: '#ff9900', fillOpacity: 0.3, radius: 500 }).bindTooltip("จุดเสี่ยง: บริเวณกังสดาล มข.", {className: 'custom-label'}).addTo(riskGroup);
+        L.circle([16.438, 102.825], { color: '#f87171', fillColor: '#f87171', fillOpacity: 0.2, radius: 400 }).bindTooltip("จุดเสี่ยง: สามแยกอุโมงค์มิตรภาพ", {className: 'custom-label'}).addTo(riskGroup);
+        L.circle([16.455, 102.820], { color: '#facc15', fillColor: '#facc15', fillOpacity: 0.2, radius: 500 }).bindTooltip("จุดเสี่ยง: บริเวณกังสดาล มข.", {className: 'custom-label'}).addTo(riskGroup);
 
         const cctvGroup = L.layerGroup(); 
         const cctvData = [
@@ -178,14 +195,13 @@
         ];
         cctvData.forEach(c => {
             const icon = L.divIcon({ className: 'cctv-icon', html: '📹', iconSize: [26, 26], iconAnchor: [13, 13] });
-            L.marker([c.lat, c.lng], { icon: icon }).bindTooltip(`<b>${c.name}</b><br><i style="font-size:11px; color:gray;">(คลิกเพื่อดูภาพสด - จำลอง)</i>`, {className: 'custom-label'}).addTo(cctvGroup);
+            L.marker([c.lat, c.lng], { icon: icon }).bindTooltip(`<b>${c.name}</b><br><i style="font-size:11px; color:#8a9099;">(คลิกเพื่อดูภาพสด - จำลอง)</i>`, {className: 'custom-label'}).addTo(cctvGroup);
         });
 
-        // 🌟 เพิ่ม Base Maps เข้าไปใน Controller มุมขวาบน
         const overlayMaps = {
             "📊 เซ็นเซอร์ระดับน้ำ IoT": sensorsGroup,
             "⚙️ สถานีสูบน้ำ": pumpsGroup,
-            "⚠️ พื้นที่เสี่ยงน้ำท่วมขัง": riskGroup,
+            "⚠️ พื้นที่เสี่ยงน้ำท่วม": riskGroup,
             "📹 กล้องวงจรปิด (CCTV)": cctvGroup
         };
         L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
@@ -197,7 +213,6 @@
         const routeLayers = {};
         const markerLayers = {};
         const routeListUI = document.getElementById('routeListUI');
-        
         const simulatedWaterLevels = {};
 
         onSnapshot(collection(db, "markers"), (snapshot) => {
@@ -212,7 +227,7 @@
 
                     const svgIcon = L.divIcon({
                         className: 'custom-pin',
-                        html: `<svg width="24" height="36" viewBox="0 0 24 36"><path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12zm0 17.5c-3.038 0-5.5-2.462-5.5-5.5S8.962 6.5 12 6.5s5.5 2.462 5.5 5.5-2.462 5.5-5.5 5.5z" fill="${data.color || '#3388ff'}"/></svg>`,
+                        html: `<svg width="24" height="36" viewBox="0 0 24 36"><path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12zm0 17.5c-3.038 0-5.5-2.462-5.5-5.5S8.962 6.5 12 6.5s5.5 2.462 5.5 5.5-2.462 5.5-5.5 5.5z" fill="${data.color || '#66fcf1'}"/></svg>`,
                         iconSize: [24, 36], iconAnchor: [12, 36]
                     });
                     const marker = L.marker([data.lat, data.lng], { icon: svgIcon }).addTo(map);
@@ -237,12 +252,12 @@
                     if (routeLayers[docId]) { map.removeLayer(routeLayers[docId]); document.getElementById(`li-${docId}`)?.remove(); }
 
                     const latlngs = data.coordinates.map(c => [c.lat, c.lng]);
-                    const polyline = L.polyline(latlngs, { color: data.color || '#0073e6', weight: data.weight || 4, className: 'water-flow' });
+                    const polyline = L.polyline(latlngs, { color: data.color || '#66fcf1', weight: data.weight || 4, className: 'water-flow' });
 
                     let layerGroup;
                     if(latlngs.length > 0 && data.orderNumber) {
                         const midPoint = latlngs[Math.floor(latlngs.length / 2)];
-                        const numIcon = L.divIcon({ className: 'custom-div-icon', html: `<div class="route-number-label" style="border-color:${data.color}">${data.orderNumber}</div>`, iconSize: [22, 22], iconAnchor: [11, 11] });
+                        const numIcon = L.divIcon({ className: 'custom-div-icon', html: `<div class="route-number-label" style="border-color:${data.color || '#66fcf1'}">${data.orderNumber}</div>`, iconSize: [22, 22], iconAnchor: [11, 11] });
                         const labelMarker = L.marker(midPoint, { icon: numIcon });
                         layerGroup = L.layerGroup([polyline, labelMarker]).addTo(map);
                     } else { layerGroup = polyline.addTo(map); }
@@ -264,7 +279,7 @@
                     
                     li.innerHTML = `
                         <div class="route-item-left">
-                            <div class="number-badge" style="background-color: ${data.color || '#e94560'}">${data.orderNumber || '-'}</div>
+                            <div class="number-badge" style="background-color: ${data.color || '#45a29e'}">${data.orderNumber || '-'}</div>
                             <div class="route-name" title="${data.name || 'ไม่มีชื่อ'}">${data.name || 'ไม่มีชื่อ'}</div>
                         </div>
                         <div class="route-level ${levelClass}">💧 ${waterLevel}%</div>
