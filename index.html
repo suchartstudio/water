@@ -11,12 +11,11 @@
     <style>
         body { margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; display: flex; height: 100vh; overflow: hidden; background: #1a1a2e;}
         
-        /* Sidebar ด้านข้าง (ปรับให้ Compact ขึ้น) */
+        /* Sidebar ด้านข้าง (Compact Style) */
         #sidebar { width: 250px; background: #fff; box-shadow: 2px 0 10px rgba(0,0,0,0.2); display: flex; flex-direction: column; z-index: 1000; }
         .sidebar-header { background: #0f3460; color: white; padding: 10px 8px; text-align: center; font-size: 14px; font-weight: bold; letter-spacing: 0.5px; }
         .route-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; background: #f4f6f9; }
         
-        /* ไอเทมรายชื่อ (Compact Style) */
         .route-item { padding: 6px 10px; border-bottom: 1px solid #e1e5ee; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #fff; margin: 3px 6px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);}
         .route-item-left { display: flex; align-items: center; gap: 8px; flex-grow: 1; overflow: hidden; }
         .route-item .number-badge { background: #e94560; color: white; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 11px; flex-shrink: 0; }
@@ -113,13 +112,38 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        const map = L.map('map').setView([16.4322, 102.8236], 13);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { 
+        // ==========================================
+        // 🗺️ ระบบ Base Maps (สลับแผนที่ฐาน)
+        // ==========================================
+        
+        // 1. แผนที่แบบคลีน สบายตา (CartoDB Voyager)
+        const voyagerMap = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { 
             maxZoom: 19,
             attribution: '© OpenStreetMap | Smart City Data Simulated'
-        }).addTo(map);
+        });
 
-        // เลเยอร์ Dashboard ต่างๆ
+        // 2. แผนที่ภูมิประเทศ แสดงเส้นความชันและระดับความสูง (OpenTopoMap)
+        const topoMap = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            maxNativeZoom: 17, // โหลดภาพถึงแค่ระดับซูม 17
+            maxZoom: 19,       // อนุญาตให้ซูมขยายต่อได้ถึง 19 โดยภาพไม่พัง
+            attribution: '© OpenStreetMap contributors, SRTM | OpenTopoMap'
+        });
+
+        // สร้างแผนที่และกำหนดเลเยอร์เริ่มต้น
+        const map = L.map('map', {
+            center: [16.4322, 102.8236],
+            zoom: 13,
+            layers: [voyagerMap] // ค่าเริ่มต้นให้เป็นแบบคลีน
+        });
+
+        const baseMaps = {
+            "🗺️ แผนที่พื้นฐาน (สะอาดตา)": voyagerMap,
+            "⛰️ แผนที่ภูมิประเทศ (เส้นความชัน)": topoMap
+        };
+
+        // ==========================================
+        // 📊 เลเยอร์ข้อมูล Dashboard
+        // ==========================================
         const sensorsGroup = L.layerGroup().addTo(map);
         const sensorsData = [
             { name: "บึงแก่นนคร", lat: 16.417, lng: 102.835, level: 65, status: "safe" },
@@ -157,13 +181,14 @@
             L.marker([c.lat, c.lng], { icon: icon }).bindTooltip(`<b>${c.name}</b><br><i style="font-size:11px; color:gray;">(คลิกเพื่อดูภาพสด - จำลอง)</i>`, {className: 'custom-label'}).addTo(cctvGroup);
         });
 
+        // 🌟 เพิ่ม Base Maps เข้าไปใน Controller มุมขวาบน
         const overlayMaps = {
             "📊 เซ็นเซอร์ระดับน้ำ IoT": sensorsGroup,
             "⚙️ สถานีสูบน้ำ": pumpsGroup,
             "⚠️ พื้นที่เสี่ยงน้ำท่วมขัง": riskGroup,
             "📹 กล้องวงจรปิด (CCTV)": cctvGroup
         };
-        L.control.layers(null, overlayMaps, { collapsed: false }).addTo(map);
+        L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
 
 
         // ==========================================
@@ -173,7 +198,6 @@
         const markerLayers = {};
         const routeListUI = document.getElementById('routeListUI');
         
-        // 🌟 เก็บค่าจำลองระดับน้ำในท่อ (เพื่อให้คงที่ ไม่เปลี่ยนเลขสุ่มทุกครั้งที่ฐานข้อมูลอัปเดต)
         const simulatedWaterLevels = {};
 
         onSnapshot(collection(db, "markers"), (snapshot) => {
@@ -212,7 +236,6 @@
                     if (!data.coordinates || !Array.isArray(data.coordinates)) return; 
                     if (routeLayers[docId]) { map.removeLayer(routeLayers[docId]); document.getElementById(`li-${docId}`)?.remove(); }
 
-                    // วาดเส้นทางลงแผนที่
                     const latlngs = data.coordinates.map(c => [c.lat, c.lng]);
                     const polyline = L.polyline(latlngs, { color: data.color || '#0073e6', weight: data.weight || 4, className: 'water-flow' });
 
@@ -225,18 +248,15 @@
                     } else { layerGroup = polyline.addTo(map); }
                     routeLayers[docId] = layerGroup;
 
-                    // 🌟 สร้างเลขจำลองความจุน้ำในท่อ (ระหว่าง 15% ถึง 95%) 
                     if (!simulatedWaterLevels[docId]) {
                         simulatedWaterLevels[docId] = Math.floor(Math.random() * 80) + 15; 
                     }
                     const waterLevel = simulatedWaterLevels[docId];
                     
-                    // คำนวณสีแจ้งเตือน
                     let levelClass = 'level-safe';
                     if (waterLevel >= 50 && waterLevel <= 79) levelClass = 'level-warn';
                     if (waterLevel >= 80) levelClass = 'level-danger';
 
-                    // เพิ่มรายการลง Sidebar แบบ Compact
                     const li = document.createElement('li');
                     li.className = 'route-item'; li.id = `li-${docId}`;
                     const orderNum = parseInt(data.orderNumber);
