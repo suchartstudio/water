@@ -11,7 +11,6 @@
     <style>
         body { margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; display: flex; height: 100vh; overflow: hidden; background: #f4f6f9;}
         
-        /* Sidebar ด้านข้าง (Compact Style) */
         #sidebar { width: 250px; background: #fff; box-shadow: 2px 0 10px rgba(0,0,0,0.15); display: flex; flex-direction: column; z-index: 1000; }
         .sidebar-header { background: #0f3460; color: white; padding: 10px 8px; text-align: center; font-size: 14px; font-weight: bold; letter-spacing: 0.5px; }
         .route-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; background: #f4f6f9; }
@@ -21,16 +20,26 @@
         .route-item .number-badge { background: #e94560; color: white; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 11px; flex-shrink: 0; }
         .route-item .route-name { font-size: 13px; color: #333; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* ป้ายแสดงระดับน้ำในท่อ พร้อม Animation เปลี่ยนสีนุ่มนวล */
-        .route-level { font-size: 11px; padding: 2px 6px; border-radius: 10px; font-weight: bold; white-space: nowrap; flex-shrink: 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); transition: all 0.5s ease; }
+        /* 🌟 ป้ายแสดงระดับน้ำในท่อ พร้อม Transition ให้ดูนุ่มนวล */
+        .route-level { 
+            font-size: 11px; padding: 2px 6px; border-radius: 10px; font-weight: bold; 
+            white-space: nowrap; flex-shrink: 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); 
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* ทำให้เด้งสมูทขึ้น */
+        }
+        
         .level-safe { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .level-warn { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-        .level-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; animation: pulseLevel 1s infinite alternate;}
-        @keyframes pulseLevel { 0% { opacity: 1; } 100% { opacity: 0.6; } }
+        .level-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        
+        /* 🌟 คลาสสำหรับแอนิเมชันเวลาตัวเลขเปลี่ยนค่า (เด้งขยายตัวและมีเงาสว่าง) */
+        .highlight-update {
+            transform: scale(1.2);
+            filter: brightness(1.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+        }
 
         #map { flex-grow: 1; height: 100%; z-index: 1; }
         
-        /* Dashboard Panel ลอยบนแผนที่ */
         #dashboard-panel {
             position: absolute; top: 15px; left: 270px; z-index: 1000;
             background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px);
@@ -43,14 +52,12 @@
         .stat-value.alert { color: #e94560; }
         .stat-value.safe { color: #28a745; }
 
-        /* กราฟิกแผนที่ */
         .water-flow { stroke-dasharray: 15, 15; animation: flowAnimation 1.5s linear infinite; }
         @keyframes flowAnimation { 100% { stroke-dashoffset: -30; } }
         
         .route-number-label { background: white; border: 2px solid #333; border-radius: 50%; color: #333; font-weight: bold; font-size: 13px; width: 22px; height: 22px; text-align: center; line-height: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         .custom-label { background: rgba(255,255,255,0.95); border: 1px solid #ccc; padding: 4px 8px; border-radius: 6px; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         
-        /* สไตล์ไอคอน IoT/Sensor */
         .sensor-icon { background: #fff; border: 3px solid; border-radius: 50px; text-align: center; line-height: 28px; font-weight: bold; font-size: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
         .sensor-safe { border-color: #28a745; color: #28a745; }
         .sensor-warn { border-color: #ffc107; color: #d39e00; }
@@ -125,7 +132,7 @@
         const map = L.map('map', {
             center: [16.4322, 102.8236],
             zoom: 13, 
-            layers: [voyagerMap] // ค่าเริ่มต้นเป็น 2D สีสว่าง
+            layers: [voyagerMap]
         });
 
         const baseMaps = {
@@ -183,16 +190,14 @@
 
 
         // ==========================================
-        // 📍 ดึงข้อมูลเส้นทางและหมุด (จาก Firebase)
+        // 📍 ระบบดึงข้อมูลเส้นทางน้ำจาก Firebase
         // ==========================================
         const routeLayers = {};
         const markerLayers = {};
         const routeListUI = document.getElementById('routeListUI');
-        
-        // เก็บค่าจำลองระดับน้ำในท่อ
         const simulatedWaterLevels = {};
 
-        // 🌟 ฟังก์ชันสำหรับอัปเดต UI ป้ายระดับน้ำ (เพื่อให้ใช้ร่วมกับตอนสุ่มเปลี่ยนค่าได้)
+        // 🌟 1. ฟังก์ชันอัปเดต UI ป้ายระดับน้ำ พร้อมใส่ Animation ป๊อปอัพ
         function updateWaterLevelUI(docId, waterLevel) {
             const li = document.getElementById(`li-${docId}`);
             if (!li) return;
@@ -203,29 +208,35 @@
             if (waterLevel >= 50 && waterLevel <= 79) levelClass = 'level-warn';
             if (waterLevel >= 80) levelClass = 'level-danger';
 
+            // ใส่คลาสสำหรับกระดอน (highlight-update) เข้าไปด้วย
             levelBadge.innerHTML = `💧 ${waterLevel}%`;
-            levelBadge.className = `route-level ${levelClass}`;
+            levelBadge.className = `route-level ${levelClass} highlight-update`;
+
+            // ดึงคลาสกระดอนออกหลังจาก 400 มิลลิวินาที เพื่อให้มันกลับไปขนาดปกติ
+            setTimeout(() => {
+                if(levelBadge) levelBadge.classList.remove('highlight-update');
+            }, 400);
         }
 
-        // 🌟 สุ่มเปลี่ยนตัวเลขน้ำแบบ Real-time (ทุกๆ 8 วินาที เปลี่ยนแปลงทีละนิด +/- 1-5%)
+        // 🌟 2. สุ่มตัวเลขทุกๆ 4 วินาที ให้เปลี่ยนแปลงทีละนิด
         setInterval(() => {
             for (const docId in simulatedWaterLevels) {
                 let currentLevel = simulatedWaterLevels[docId];
                 
-                // สุ่มว่าจะให้น้ำขึ้นหรือน้ำลง (-4 ถึง +5)
-                const change = Math.floor(Math.random() * 10) - 4;
+                // สุ่มให้น้ำขึ้นหรือลง ระหว่าง -4 ถึง +4
+                const change = Math.floor(Math.random() * 9) - 4; 
                 currentLevel += change;
 
-                // จำกัดไม่ให้ต่ำกว่า 15% และไม่เกิน 99%
+                // จำกัดค่าให้สมจริง
                 if (currentLevel > 99) currentLevel = 99;
                 if (currentLevel < 15) currentLevel = 15;
 
                 simulatedWaterLevels[docId] = currentLevel;
                 updateWaterLevelUI(docId, currentLevel);
             }
-        }, 8000); // 8000 ms = 8 วินาที
+        }, 4000); 
 
-        // หมุดพิกัด
+        // ดึงหมุดพิกัด
         onSnapshot(collection(db, "markers"), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 const data = change.doc.data();
@@ -248,7 +259,7 @@
             });
         });
 
-        // เส้นทางน้ำ
+        // ดึงเส้นทางน้ำ
         onSnapshot(collection(db, "routes"), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 const data = change.doc.data();
@@ -258,7 +269,7 @@
                     if (routeLayers[docId]) map.removeLayer(routeLayers[docId]);
                     document.getElementById(`li-${docId}`)?.remove();
                     delete routeLayers[docId];
-                    delete simulatedWaterLevels[docId]; // ลบข้อมูลการจำลองน้ำออกด้วย
+                    delete simulatedWaterLevels[docId]; 
                 } else {
                     if (!data.coordinates || !Array.isArray(data.coordinates)) return; 
                     if (routeLayers[docId]) { map.removeLayer(routeLayers[docId]); document.getElementById(`li-${docId}`)?.remove(); }
@@ -275,12 +286,12 @@
                     } else { layerGroup = polyline.addTo(map); }
                     routeLayers[docId] = layerGroup;
 
-                    // สุ่มค่าเริ่มต้นครั้งแรกเมื่อโหลดข้อมูล
+                    // สุ่มค่าเริ่มต้นครั้งแรกให้กับเส้นทางนี้
                     if (!simulatedWaterLevels[docId]) {
                         simulatedWaterLevels[docId] = Math.floor(Math.random() * 60) + 20; 
                     }
 
-                    // สร้างกรอบเปล่าๆ แล้วเรียกฟังก์ชัน Update สีใส่เข้าไป
+                    // วาดแถบรายชื่อด้านซ้าย
                     const li = document.createElement('li');
                     li.className = 'route-item'; li.id = `li-${docId}`;
                     const orderNum = parseInt(data.orderNumber);
@@ -295,7 +306,7 @@
                     `;
                     routeListUI.appendChild(li);
 
-                    // อัปเดตสีและตัวเลขครั้งแรกทันที
+                    // อัปเดตสีตัวเลขทันทีเมื่อโหลดเสร็จ
                     updateWaterLevelUI(docId, simulatedWaterLevels[docId]);
                 }
             });
