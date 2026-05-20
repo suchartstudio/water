@@ -11,34 +11,43 @@
     <style>
         body { margin: 0; padding: 0; font-family: 'Chakra Petch', sans-serif; display: flex; height: 100vh; overflow: hidden; background: #1a1a2e;}
         
-        /* Sidebar ด้านข้าง */
-        #sidebar { width: 280px; background: #fff; box-shadow: 2px 0 10px rgba(0,0,0,0.2); display: flex; flex-direction: column; z-index: 1000; }
-        .sidebar-header { background: #0f3460; color: white; padding: 15px 10px; text-align: center; font-size: 16px; font-weight: bold; letter-spacing: 1px; }
+        /* Sidebar ด้านข้าง (ปรับให้ Compact ขึ้น) */
+        #sidebar { width: 250px; background: #fff; box-shadow: 2px 0 10px rgba(0,0,0,0.2); display: flex; flex-direction: column; z-index: 1000; }
+        .sidebar-header { background: #0f3460; color: white; padding: 10px 8px; text-align: center; font-size: 14px; font-weight: bold; letter-spacing: 0.5px; }
         .route-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; background: #f4f6f9; }
-        .route-item { padding: 10px 15px; border-bottom: 1px solid #e1e5ee; display: flex; align-items: center; gap: 12px; background: #fff; margin: 4px 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);}
-        .route-item .number-badge { background: #e94560; color: white; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 12px; flex-shrink: 0; }
-        .route-item .route-name { font-size: 14px; color: #333; font-weight: 600; }
         
+        /* ไอเทมรายชื่อ (Compact Style) */
+        .route-item { padding: 6px 10px; border-bottom: 1px solid #e1e5ee; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #fff; margin: 3px 6px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);}
+        .route-item-left { display: flex; align-items: center; gap: 8px; flex-grow: 1; overflow: hidden; }
+        .route-item .number-badge { background: #e94560; color: white; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 11px; flex-shrink: 0; }
+        .route-item .route-name { font-size: 13px; color: #333; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        /* ป้ายแสดงระดับน้ำในท่อ */
+        .route-level { font-size: 11px; padding: 2px 6px; border-radius: 10px; font-weight: bold; white-space: nowrap; flex-shrink: 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
+        .level-safe { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .level-warn { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .level-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; animation: pulseLevel 1s infinite alternate;}
+        @keyframes pulseLevel { 0% { opacity: 1; } 100% { opacity: 0.6; } }
+
         #map { flex-grow: 1; height: 100%; z-index: 1; }
         
         /* Dashboard Panel ลอยบนแผนที่ */
         #dashboard-panel {
-            position: absolute; top: 20px; left: 300px; z-index: 1000;
+            position: absolute; top: 15px; left: 270px; z-index: 1000;
             background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px);
-            padding: 15px 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-            border-left: 5px solid #0f3460; display: flex; gap: 20px;
+            padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            border-left: 4px solid #0f3460; display: flex; gap: 15px;
         }
         .stat-box { display: flex; flex-direction: column; }
-        .stat-label { font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase;}
-        .stat-value { font-size: 20px; color: #0f3460; font-weight: 700; }
+        .stat-label { font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase;}
+        .stat-value { font-size: 18px; color: #0f3460; font-weight: 700; }
         .stat-value.alert { color: #e94560; }
         .stat-value.safe { color: #28a745; }
 
-        /* กราฟิกและ Animation แผนที่ */
+        /* กราฟิกแผนที่ */
         .water-flow { stroke-dasharray: 15, 15; animation: flowAnimation 1.5s linear infinite; }
         @keyframes flowAnimation { 100% { stroke-dashoffset: -30; } }
         
-        /* Styles สำหรับ Custom Icons ของ Smart City */
         .route-number-label { background: white; border: 2px solid #333; border-radius: 50%; color: #333; font-weight: bold; font-size: 13px; width: 22px; height: 22px; text-align: center; line-height: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         .custom-label { background: rgba(255,255,255,0.95); border: 1px solid #ccc; padding: 4px 8px; border-radius: 6px; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         
@@ -104,16 +113,13 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // แผนที่ฐานแบบโทนสีเทา (CartoDB Positron) เพื่อให้ข้อมูล Dashboard เด่นขึ้น
         const map = L.map('map').setView([16.4322, 102.8236], 13);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { 
             maxZoom: 19,
             attribution: '© OpenStreetMap | Smart City Data Simulated'
         }).addTo(map);
 
-        // ==========================================
-        // 📊 1. เลเยอร์: เซ็นเซอร์ระดับน้ำ IoT (จำลองข้อมูล)
-        // ==========================================
+        // เลเยอร์ Dashboard ต่างๆ
         const sensorsGroup = L.layerGroup().addTo(map);
         const sensorsData = [
             { name: "บึงแก่นนคร", lat: 16.417, lng: 102.835, level: 65, status: "safe" },
@@ -121,17 +127,10 @@
             { name: "ประตูระบายน้ำ D8", lat: 16.425, lng: 102.855, level: 92, status: "danger" }
         ];
         sensorsData.forEach(s => {
-            const icon = L.divIcon({
-                className: `sensor-icon sensor-${s.status}`,
-                html: `${s.level}%`,
-                iconSize: [34, 34], iconAnchor: [17, 17]
-            });
+            const icon = L.divIcon({ className: `sensor-icon sensor-${s.status}`, html: `${s.level}%`, iconSize: [34, 34], iconAnchor: [17, 17] });
             L.marker([s.lat, s.lng], { icon: icon }).bindTooltip(`<b>เซ็นเซอร์: ${s.name}</b><br>ระดับน้ำ: ${s.level}%`, {className: 'custom-label'}).addTo(sensorsGroup);
         });
 
-        // ==========================================
-        // ⚙️ 2. เลเยอร์: สถานีสูบน้ำ (Pump Stations)
-        // ==========================================
         const pumpsGroup = L.layerGroup().addTo(map);
         const pumpsData = [
             { name: "สถานีสูบน้ำหน้าเมือง", lat: 16.428, lng: 102.838, active: true },
@@ -139,28 +138,16 @@
             { name: "สถานีคลองร่องเหมือง", lat: 16.435, lng: 102.840, active: true }
         ];
         pumpsData.forEach(p => {
-            const icon = L.divIcon({
-                className: 'pump-icon',
-                html: p.active ? '⚙️' : '⏸️',
-                iconSize: [28, 28], iconAnchor: [14, 14]
-            });
+            const icon = L.divIcon({ className: 'pump-icon', html: p.active ? '⚙️' : '⏸️', iconSize: [28, 28], iconAnchor: [14, 14] });
             const statusText = p.active ? '<span style="color:green">กำลังทำงาน</span>' : '<span style="color:gray">หยุดพัก</span>';
             L.marker([p.lat, p.lng], { icon: icon }).bindTooltip(`<b>${p.name}</b><br>สถานะ: ${statusText}`, {className: 'custom-label'}).addTo(pumpsGroup);
         });
 
-        // ==========================================
-        // ⚠️ 3. เลเยอร์: พื้นที่เสี่ยงน้ำท่วม (Flood Risk Zones)
-        // ==========================================
         const riskGroup = L.layerGroup().addTo(map);
-        L.circle([16.438, 102.825], { color: 'red', fillColor: '#f03', fillOpacity: 0.3, radius: 400 })
-            .bindTooltip("จุดเสี่ยง: สามแยกอุโมงค์มิตรภาพ", {className: 'custom-label'}).addTo(riskGroup);
-        L.circle([16.455, 102.820], { color: 'orange', fillColor: '#ff9900', fillOpacity: 0.3, radius: 500 })
-            .bindTooltip("จุดเสี่ยง: บริเวณกังสดาล มข.", {className: 'custom-label'}).addTo(riskGroup);
+        L.circle([16.438, 102.825], { color: 'red', fillColor: '#f03', fillOpacity: 0.3, radius: 400 }).bindTooltip("จุดเสี่ยง: สามแยกอุโมงค์มิตรภาพ", {className: 'custom-label'}).addTo(riskGroup);
+        L.circle([16.455, 102.820], { color: 'orange', fillColor: '#ff9900', fillOpacity: 0.3, radius: 500 }).bindTooltip("จุดเสี่ยง: บริเวณกังสดาล มข.", {className: 'custom-label'}).addTo(riskGroup);
 
-        // ==========================================
-        // 📹 4. เลเยอร์: กล้อง CCTV
-        // ==========================================
-        const cctvGroup = L.layerGroup(); // ปิดไว้เป็นค่าเริ่มต้นให้แผนที่ไม่รกเกินไป
+        const cctvGroup = L.layerGroup(); 
         const cctvData = [
             { name: "CCTV มิตรภาพ-ศรีจันทร์", lat: 16.431, lng: 102.826 },
             { name: "CCTV แยกประตูเมือง", lat: 16.429, lng: 102.823 }
@@ -170,7 +157,6 @@
             L.marker([c.lat, c.lng], { icon: icon }).bindTooltip(`<b>${c.name}</b><br><i style="font-size:11px; color:gray;">(คลิกเพื่อดูภาพสด - จำลอง)</i>`, {className: 'custom-label'}).addTo(cctvGroup);
         });
 
-        // ควบคุม Layer ทั้งหมดที่มุมขวาบน
         const overlayMaps = {
             "📊 เซ็นเซอร์ระดับน้ำ IoT": sensorsGroup,
             "⚙️ สถานีสูบน้ำ": pumpsGroup,
@@ -181,13 +167,15 @@
 
 
         // ==========================================
-        // 📍 ดึงข้อมูลเส้นทางและหมุดของคุณจาก Firebase (ระบบเดิม)
+        // 📍 ดึงข้อมูลเส้นทางและหมุด (จาก Firebase)
         // ==========================================
         const routeLayers = {};
         const markerLayers = {};
         const routeListUI = document.getElementById('routeListUI');
+        
+        // 🌟 เก็บค่าจำลองระดับน้ำในท่อ (เพื่อให้คงที่ ไม่เปลี่ยนเลขสุ่มทุกครั้งที่ฐานข้อมูลอัปเดต)
+        const simulatedWaterLevels = {};
 
-        // ข้อมูล Markers (หมุดที่แอดมินปัก)
         onSnapshot(collection(db, "markers"), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 const data = change.doc.data();
@@ -210,7 +198,6 @@
             });
         });
 
-        // ข้อมูล Routes (เส้นทางน้ำที่แอดมินลาก)
         onSnapshot(collection(db, "routes"), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 const data = change.doc.data();
@@ -220,10 +207,12 @@
                     if (routeLayers[docId]) map.removeLayer(routeLayers[docId]);
                     document.getElementById(`li-${docId}`)?.remove();
                     delete routeLayers[docId];
+                    delete simulatedWaterLevels[docId];
                 } else {
                     if (!data.coordinates || !Array.isArray(data.coordinates)) return; 
                     if (routeLayers[docId]) { map.removeLayer(routeLayers[docId]); document.getElementById(`li-${docId}`)?.remove(); }
 
+                    // วาดเส้นทางลงแผนที่
                     const latlngs = data.coordinates.map(c => [c.lat, c.lng]);
                     const polyline = L.polyline(latlngs, { color: data.color || '#0073e6', weight: data.weight || 4, className: 'water-flow' });
 
@@ -236,11 +225,30 @@
                     } else { layerGroup = polyline.addTo(map); }
                     routeLayers[docId] = layerGroup;
 
+                    // 🌟 สร้างเลขจำลองความจุน้ำในท่อ (ระหว่าง 15% ถึง 95%) 
+                    if (!simulatedWaterLevels[docId]) {
+                        simulatedWaterLevels[docId] = Math.floor(Math.random() * 80) + 15; 
+                    }
+                    const waterLevel = simulatedWaterLevels[docId];
+                    
+                    // คำนวณสีแจ้งเตือน
+                    let levelClass = 'level-safe';
+                    if (waterLevel >= 50 && waterLevel <= 79) levelClass = 'level-warn';
+                    if (waterLevel >= 80) levelClass = 'level-danger';
+
+                    // เพิ่มรายการลง Sidebar แบบ Compact
                     const li = document.createElement('li');
                     li.className = 'route-item'; li.id = `li-${docId}`;
                     const orderNum = parseInt(data.orderNumber);
                     li.style.order = isNaN(orderNum) ? 9999 : orderNum; 
-                    li.innerHTML = `<div class="number-badge" style="background-color: ${data.color || '#e94560'}">${data.orderNumber || '-'}</div><div class="route-name">${data.name || 'ไม่มีชื่อ'}</div>`;
+                    
+                    li.innerHTML = `
+                        <div class="route-item-left">
+                            <div class="number-badge" style="background-color: ${data.color || '#e94560'}">${data.orderNumber || '-'}</div>
+                            <div class="route-name" title="${data.name || 'ไม่มีชื่อ'}">${data.name || 'ไม่มีชื่อ'}</div>
+                        </div>
+                        <div class="route-level ${levelClass}">💧 ${waterLevel}%</div>
+                    `;
                     routeListUI.appendChild(li);
                 }
             });
