@@ -15,13 +15,12 @@
         .sidebar-header { background: #0f3460; color: white; padding: 10px 8px; text-align: center; font-size: 14px; font-weight: bold; letter-spacing: 0.5px; }
         .route-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; background: #f4f6f9; }
         
-        /* เพิ่ม transition ให้ตอนสลับแถวดูนุ่มนวลขึ้นเล็กน้อย */
         .route-item { padding: 6px 10px; border-bottom: 1px solid #e1e5ee; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #fff; margin: 3px 6px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .route-item-left { display: flex; align-items: center; gap: 8px; flex-grow: 1; overflow: hidden; }
         .route-item .number-badge { background: #333; color: white; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 11px; flex-shrink: 0; }
         .route-item .route-name { font-size: 13px; color: #333; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* ป้ายแสดงระดับน้ำในท่อ (เอา Animation กระดอนออก) */
+        /* ป้ายแสดงระดับน้ำในท่อ (Sidebar) */
         .route-level { 
             font-size: 11px; padding: 2px 6px; border-radius: 10px; font-weight: bold; 
             white-space: nowrap; flex-shrink: 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); 
@@ -48,7 +47,14 @@
         .water-flow { stroke-dasharray: 15, 15; animation: flowAnimation 1.5s linear infinite; }
         @keyframes flowAnimation { 100% { stroke-dashoffset: -30; } }
         
-        .route-number-label { background: white; border: 2px solid #333; border-radius: 50%; color: #333; font-weight: bold; font-size: 13px; width: 22px; height: 22px; text-align: center; line-height: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        /* 🌟 ป้ายวงกลมบนแผนที่ (เพิ่ม transition ให้การเปลี่ยนสีดูนุ่มนวล) */
+        .route-number-label { 
+            border: 2px solid #333; border-radius: 50%; font-weight: bold; 
+            font-size: 13px; width: 22px; height: 22px; text-align: center; 
+            line-height: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); 
+            transition: all 0.3s ease; 
+        }
+        
         .custom-label { background: rgba(255,255,255,0.95); border: 1px solid #ccc; padding: 4px 8px; border-radius: 6px; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         
         .sensor-icon { background: #fff; border: 3px solid; border-radius: 50px; text-align: center; line-height: 28px; font-weight: bold; font-size: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
@@ -188,42 +194,59 @@
         const routeLayers = {};
         const markerLayers = {};
         const routeListUI = document.getElementById('routeListUI');
+        
+        // 🌟 ตัวแปรเก็บข้อมูลเพื่อใช้สร้าง Icon สีใหม่
         const simulatedWaterLevels = {};
+        const routeLabelMarkers = {}; 
+        const routeDataStore = {};    
 
-        // 🌟 ฟังก์ชันอัปเดต UI ป้ายระดับน้ำ และ จัดเรียงลำดับใหม่ (Sort)
-        function updateWaterLevelUI(docId, waterLevel) {
-            const li = document.getElementById(`li-${docId}`);
-            if (!li) return;
-            const levelBadge = li.querySelector('.route-level');
-            if (!levelBadge) return;
-
-            let levelClass = 'level-safe';
-            if (waterLevel >= 50 && waterLevel <= 79) levelClass = 'level-warn';
-            if (waterLevel >= 80) levelClass = 'level-danger';
-
-            levelBadge.innerHTML = `💧 ${waterLevel}%`;
-            levelBadge.className = `route-level ${levelClass}`;
-
-            // จัดเรียงลำดับ (เปอร์เซ็นต์มากไปน้อย) โดยการตั้งค่าติดลบให้กับ order
-            // ตัวอย่าง: น้ำ 90% จะได้ order = -90 (จะอยู่บนๆ) / น้ำ 20% จะได้ order = -20 (อยู่ล่างกว่า)
-            li.style.order = -waterLevel;
+        // 🌟 ฟังก์ชันคำนวณสีพื้นหลังและสีตัวหนังสือ ตามระดับเปอร์เซ็นต์
+        function getLevelStyle(waterLevel) {
+            if (waterLevel >= 80) return { bg: '#f8d7da', text: '#721c24', class: 'level-danger' }; // แดง
+            if (waterLevel >= 50) return { bg: '#fff3cd', text: '#856404', class: 'level-warn' };   // เหลือง
+            return { bg: '#d4edda', text: '#155724', class: 'level-safe' };                         // เขียว
         }
 
-        // 🌟 สุ่มตัวเลขทุกๆ 4 วินาที ให้เปลี่ยนแปลงทีละนิด
+        // 🌟 ฟังก์ชันอัปเดต UI (Sidebar และ แผนที่)
+        function updateWaterLevelUI(docId, waterLevel) {
+            const style = getLevelStyle(waterLevel);
+            
+            // 1. อัปเดตเมนูด้านซ้ายและจัดเรียงลำดับใหม่
+            const li = document.getElementById(`li-${docId}`);
+            if (li) {
+                const levelBadge = li.querySelector('.route-level');
+                if (levelBadge) {
+                    levelBadge.innerHTML = `💧 ${waterLevel}%`;
+                    levelBadge.className = `route-level ${style.class}`;
+                }
+                li.style.order = -waterLevel; // เปอร์เซ็นต์มากไปน้อย
+            }
+
+            // 2. อัปเดตสีของป้ายวงกลมบนแผนที่
+            const labelMarker = routeLabelMarkers[docId];
+            const data = routeDataStore[docId];
+            if (labelMarker && data) {
+                const newIcon = L.divIcon({ 
+                    className: 'custom-div-icon', 
+                    html: `<div class="route-number-label" style="border-color:${data.color}; background-color:${style.bg}; color:${style.text};">${data.orderNumber}</div>`, 
+                    iconSize: [22, 22], iconAnchor: [11, 11] 
+                });
+                labelMarker.setIcon(newIcon); // ส่งคำสั่งเปลี่ยน Icon สีใหม่ลงแผนที่
+            }
+        }
+
+        // สุ่มตัวเลขทุกๆ 4 วินาที ให้เปลี่ยนแปลงทีละนิด
         setInterval(() => {
             for (const docId in simulatedWaterLevels) {
                 let currentLevel = simulatedWaterLevels[docId];
-                
-                // สุ่มให้น้ำขึ้นหรือลง ระหว่าง -4 ถึง +4
                 const change = Math.floor(Math.random() * 9) - 4; 
                 currentLevel += change;
 
-                // จำกัดค่าให้สมจริง (15% ถึง 99%)
                 if (currentLevel > 99) currentLevel = 99;
                 if (currentLevel < 15) currentLevel = 15;
 
                 simulatedWaterLevels[docId] = currentLevel;
-                updateWaterLevelUI(docId, currentLevel);
+                updateWaterLevelUI(docId, currentLevel); // อัปเดตทั้ง Sidebar และ Map
             }
         }, 4000); 
 
@@ -261,9 +284,21 @@
                     document.getElementById(`li-${docId}`)?.remove();
                     delete routeLayers[docId];
                     delete simulatedWaterLevels[docId]; 
+                    delete routeLabelMarkers[docId];
+                    delete routeDataStore[docId];
                 } else {
                     if (!data.coordinates || !Array.isArray(data.coordinates)) return; 
                     if (routeLayers[docId]) { map.removeLayer(routeLayers[docId]); document.getElementById(`li-${docId}`)?.remove(); }
+
+                    // เก็บข้อมูลไว้สร้าง Icon
+                    routeDataStore[docId] = data;
+
+                    // สุ่มค่าเริ่มต้นครั้งแรก
+                    if (!simulatedWaterLevels[docId]) {
+                        simulatedWaterLevels[docId] = Math.floor(Math.random() * 60) + 20; 
+                    }
+                    const waterLevel = simulatedWaterLevels[docId];
+                    const style = getLevelStyle(waterLevel);
 
                     const latlngs = data.coordinates.map(c => [c.lat, c.lng]);
                     const polyline = L.polyline(latlngs, { color: data.color || '#0073e6', weight: data.weight || 4, className: 'water-flow' });
@@ -271,18 +306,22 @@
                     let layerGroup;
                     if(latlngs.length > 0 && data.orderNumber) {
                         const midPoint = latlngs[Math.floor(latlngs.length / 2)];
-                        const numIcon = L.divIcon({ className: 'custom-div-icon', html: `<div class="route-number-label" style="border-color:${data.color}">${data.orderNumber}</div>`, iconSize: [22, 22], iconAnchor: [11, 11] });
+                        // สร้าง Icon ป้ายวงกลมพร้อมกับสีแจ้งเตือนครั้งแรก
+                        const numIcon = L.divIcon({ 
+                            className: 'custom-div-icon', 
+                            html: `<div class="route-number-label" style="border-color:${data.color}; background-color:${style.bg}; color:${style.text};">${data.orderNumber}</div>`, 
+                            iconSize: [22, 22], iconAnchor: [11, 11] 
+                        });
                         const labelMarker = L.marker(midPoint, { icon: numIcon });
+                        
+                        routeLabelMarkers[docId] = labelMarker; // เก็บ Reference ของหมุดไว้
                         layerGroup = L.layerGroup([polyline, labelMarker]).addTo(map);
-                    } else { layerGroup = polyline.addTo(map); }
+                    } else { 
+                        layerGroup = polyline.addTo(map); 
+                    }
                     routeLayers[docId] = layerGroup;
 
-                    // สุ่มค่าเริ่มต้นครั้งแรกให้กับเส้นทางนี้
-                    if (!simulatedWaterLevels[docId]) {
-                        simulatedWaterLevels[docId] = Math.floor(Math.random() * 60) + 20; 
-                    }
-
-                    // วาดแถบรายชื่อด้านซ้าย
+                    // สร้างแถบรายชื่อด้านซ้าย
                     const li = document.createElement('li');
                     li.className = 'route-item'; li.id = `li-${docId}`;
                     
@@ -296,7 +335,7 @@
                     routeListUI.appendChild(li);
 
                     // อัปเดตสีตัวเลขและจัดเรียงลำดับทันทีเมื่อโหลดเสร็จ
-                    updateWaterLevelUI(docId, simulatedWaterLevels[docId]);
+                    updateWaterLevelUI(docId, waterLevel);
                 }
             });
         });
